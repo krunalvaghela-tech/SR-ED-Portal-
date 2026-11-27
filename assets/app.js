@@ -255,87 +255,138 @@
   }
 
   /* ---------- views ---------- */
+  /* ---------- small shared visuals ---------- */
+  function initials(name) { return String(name || "?").replace(/\(.*\)/, "").trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join(""); }
+  function avatarSm(name) {
+    var h = 0; String(name || "").split("").forEach(function (c) { h = (h * 31 + c.charCodeAt(0)) % 3; });
+    return '<span class="av av' + h + '" aria-hidden="true">' + esc(initials(name)) + "</span>";
+  }
+  function fileChip(e) {
+    if (!e.file) return "";
+    return '<span class="file-chip">' + icon(fileIcon(fileKind(e.file, localFiles[e.id] && localFiles[e.id].type))) + "<span>" + esc(e.file) + "</span></span>";
+  }
+  function smoothPath(pts) {
+    if (!pts.length) return "";
+    var d = "M" + pts[0][0].toFixed(1) + " " + pts[0][1].toFixed(1);
+    for (var i = 0; i < pts.length - 1; i++) {
+      var p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+      d += " C" + (p1[0] + (p2[0] - p0[0]) / 6).toFixed(1) + " " + (p1[1] + (p2[1] - p0[1]) / 6).toFixed(1) + " " +
+        (p2[0] - (p3[0] - p1[0]) / 6).toFixed(1) + " " + (p2[1] - (p3[1] - p1[1]) / 6).toFixed(1) + " " + p2[0].toFixed(1) + " " + p2[1].toFixed(1);
+    }
+    return d;
+  }
+  function dayGroup(d) {
+    var n = days(d, TODAY);
+    return n <= 0 ? "Today" : n === 1 ? "Yesterday" : n < 7 ? "This week" : n < 31 ? "This month" : "Earlier";
+  }
+
   function vOverview() {
-    var g = gaps(), total = state.evidence.length, c = completion();
+    var g = gaps(), c = completion(), first = g[0];
     var high = g.filter(function (x) { return x.sev === "high"; }).length;
-    var first = g[0];
     var due = claimDue(), left = days(TODAY, due);
     var est = GUIDE && GUIDE.estimate ? GUIDE.estimate() : null;
-    var strength = CLAIM ? CLAIM.score().pct : null;
-    var hour = new Date().getHours();
-    var hello = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+    var sc = CLAIM ? CLAIM.score() : null, strength = sc ? sc.pct : null;
     var heroH1 = g.length ?
       '<span class="soft">' + plural(g.length, "gap", "gaps") + " to close.</span> Then your " + YEAR + ' binder is <span class="hot">ready</span>.' :
       '<span class="soft">Nothing missing.</span> Your ' + YEAR + ' binder is <span class="hot">ready</span>.';
     var cta = first ?
-      '<a class="btn" href="#' + first.go + '"' + (first.open ? ' data-open="' + first.open + '"' : "") + '>Fix the first gap <span class="arr" aria-hidden="true">&rarr;</span></a>' :
+      '<a class="btn" href="#' + first.go + '">Fix the first gap <span class="arr" aria-hidden="true">&rarr;</span></a>' :
       '<a class="btn" href="#export">Export the binder <span class="arr" aria-hidden="true">&rarr;</span></a>';
+    var tabs = '<nav class="ptabs" aria-label="Overview sections">' + [["overview", "Overview"], ["projects", "Projects"], ["deadlines", "Deadlines"], ["strength", "Claim strength"]].map(function (t) {
+      return '<a class="ptab' + (t[0] === "overview" ? " on" : "") + '" href="#' + t[0] + '"' + (t[0] === "overview" ? ' aria-current="page"' : "") + ">" + t[1] + "</a>"; }).join("") + "</nav>";
 
-    var kpi = function (href, label, big, sub, extra) {
-      return '<a class="kpi rv" href="#' + href + '"><span class="kpi-l">' + label + '</span><span class="kpi-v num">' + big + '</span><span class="kpi-s">' + sub + "</span>" + (extra || "") + "</a>";
+    // figure cards
+    var mini = function (href, ic, label, value, sub) {
+      return '<a class="mini" href="#' + href + '"><span class="mini-ico">' + icon(ic) + '</span><span class="mini-v num">' + value + '</span><span class="mini-l">' + label + '</span><span class="mini-s">' + sub + "</span></a>";
     };
-    var meter = function (p) { return '<span class="kpi-bar" aria-hidden="true"><span style="width:' + Math.max(0, Math.min(100, p)) + '%"></span></span>'; };
-    var kpis = '<div class="kpis">' +
-      kpi("claimable", "Estimated credit", est == null ? "–" : money.format(est), "Federal plus provincial, from your costs") +
-      kpi("strength", "Claim strength", strength == null ? "–" : strength + "%", strength >= 85 ? "Strong. Ready for your advisor" : strength >= 65 ? "Fair. A few items to collect" : "At risk. Collect the missing proof", strength == null ? "" : meter(strength)) +
-      kpi("deadlines", "Claim due", left >= 0 ? left + "<small> days</small>" : "Passed", longDate(due)) +
-      kpi("gaps", "Open gaps", String(g.length), high + " to fix first, " + (g.length - high) + " to fix soon") +
+    var minis = '<div class="minis">' +
+      mini("claimable", "calculator", "Estimated credit", est == null ? "–" : money.format(est), "Federal plus provincial") +
+      mini("strength", "gauge", "Claim strength", strength == null ? "–" : strength + "%", strength >= 85 ? "Strong" : strength >= 65 ? "Fair" : "At risk") +
+      mini("deadlines", "calendar-blank", "Claim due", left >= 0 ? left + "<small> days</small>" : "Passed", longDate(due)) +
+      mini("gaps", "warning-circle", "Open gaps", String(g.length), high + " to fix first") +
       "</div>";
 
-    // Hours this week, by project
-    var rows = state.projects.map(function (pr) {
-      return [pr.name, state.people.reduce(function (s, p) { return s + (Number((state.hours[p.id] || {})[pr.id]) || 0); }, 0)];
-    });
-    rows.push(["Other work", state.people.reduce(function (s, p) { return s + (Number((state.hours[p.id] || {}).other) || 0); }, 0)]);
-    var hmax = Math.max.apply(null, rows.map(function (r) { return r[1]; }).concat([1]));
-    var hours = '<ul class="hbars">' + rows.map(function (r, i) {
-      return '<li class="' + (i === rows.length - 1 ? "other" : "") + '"><span class="hb-n" title="' + esc(r[0]) + '">' + esc(r[0]) + '</span><span class="hb-t" aria-hidden="true"><span style="width:' + (r[1] / hmax * 100).toFixed(1) + '%"></span></span><span class="hb-v num">' + fmt(r[1]) + " h</span></li>";
-    }).join("") + "</ul>";
-
-    // Filing activity: records per day over the last 26 weeks
-    var WEEKS = 26, startDay = addDays(WEEK_OF, -7 * (WEEKS - 1)), byDay = {};
-    state.evidence.forEach(function (e) { byDay[e.date] = (byDay[e.date] || 0) + 1; });
-    var cells = "", cs = 12, gap = 3, filedIn = 0;
-    for (var w = 0; w < WEEKS; w++) {
-      for (var d = 0; d < 7; d++) {
-        var day = addDays(startDay, w * 7 + d);
-        if (day > TODAY) continue;
-        var n = byDay[day] || 0; filedIn += n;
-        var lvl = n === 0 ? 0 : n === 1 ? 1 : n === 2 ? 2 : 3;
-        cells += '<rect class="hm l' + lvl + '" x="' + (w * (cs + gap)) + '" y="' + (d * (cs + gap)) + '" width="' + cs + '" height="' + cs + '" rx="3"><title>' + day + ": " + plural(n, "record", "records") + "</title></rect>";
-      }
+    // line chart: records filed per month of the tax year
+    var ys = yearStart(), months = [];
+    for (var m = 0; m < 12; m++) months.push(addMonthsCRA(ys.slice(0, 8) + "01", m).slice(0, 7));
+    var monthly = months.map(function (mm) { return state.evidence.filter(function (e) { return e.date.slice(0, 7) === mm; }).length; });
+    var run = 0, counts = monthly.map(function (v) { run += v; return run; });   // running total reads as a steady trail
+    var nowIdx = months.indexOf(TODAY.slice(0, 7)); if (nowIdx < 0) nowIdx = TODAY > months[11] ? 11 : -1;
+    var W = 420, H = 230, P = 20, top = 20, maxC = Math.max.apply(null, counts.concat([2]));
+    var x = function (i) { return P + i * (W - 2 * P) / 11; }, y = function (v) { return H - 28 - v / maxC * (H - 28 - top); };
+    var upto = nowIdx < 0 ? -1 : nowIdx, pts = counts.slice(0, upto + 1).map(function (v, i) { return [x(i), y(v)]; });
+    var path = smoothPath(pts), area = pts.length ? path + " L" + x(upto).toFixed(1) + " " + (H - 28) + " L" + x(0).toFixed(1) + " " + (H - 28) + " Z" : "";
+    var peak = Math.max(0, upto);
+    var grid = [0.5, 1].map(function (f) { return '<line class="lc-grid" x1="' + P + '" x2="' + (W - P) + '" y1="' + y(maxC * f).toFixed(1) + '" y2="' + y(maxC * f).toFixed(1) + '"/>'; }).join("");
+    var dots = pts.map(function (p, i) { return '<circle class="lc-dot' + (i === peak ? " peak" : "") + '" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="' + (i === peak ? 5 : 3) + '"><title>' + MONTHS[Number(months[i].slice(5)) - 1] + ": " + monthly[i] + " filed, " + counts[i] + " in total</title></circle>"; }).join("");
+    var labels = months.map(function (mm, i) { return '<text class="lc-x" x="' + x(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + MONTHS[Number(mm.slice(5)) - 1] + "</text>"; }).join("");
+    var tip = "";
+    if (pts.length) {
+      var px = x(peak), py = y(counts[peak]), tw = 84, th = 36;
+      var tx = Math.min(W - P - tw, Math.max(4, px - tw / 2)), ty = py - th - 10;
+      if (ty < 4) { ty = py + 12; tx = Math.max(4, px - tw - 10); }
+      tip = '<g class="lc-tip"><line x1="' + px.toFixed(1) + '" x2="' + px.toFixed(1) + '" y1="' + (py + 6).toFixed(1) + '" y2="' + (H - 28) + '"/>' +
+        '<rect x="' + tx.toFixed(1) + '" y="' + ty.toFixed(1) + '" width="' + tw + '" height="' + th + '" rx="8"/>' +
+        '<text x="' + (tx + tw / 2).toFixed(1) + '" y="' + (ty + 16).toFixed(1) + '" text-anchor="middle" class="lc-tv">' + counts[peak] + '</text>' +
+        '<text x="' + (tx + tw / 2).toFixed(1) + '" y="' + (ty + 29).toFixed(1) + '" text-anchor="middle" class="lc-tl">in total</text></g>';
     }
-    var hmW = WEEKS * (cs + gap) - gap, hmH = 7 * (cs + gap) - gap;
-    var heat = '<div class="hm-wrap"><svg viewBox="0 0 ' + hmW + " " + hmH + '" role="img" aria-label="' + plural(filedIn, "record", "records") + ' filed in the last 26 weeks">' + cells + "</svg></div>" +
-      '<div class="hm-legend"><span>Less</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><span>More</span></div>';
+    var lineCard = '<div class="card ov-card"><div class="row between"><h2>Records filed</h2><span class="stamp">' + plural(run, "record", "records") + " this tax year</span></div>" +
+      '<svg class="lc" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Running total of records filed: ' + months.map(function (mm, i) { return MONTHS[Number(mm.slice(5)) - 1] + " " + counts[i]; }).join(", ") + '">' +
+      grid + (area ? '<path class="lc-area" d="' + area + '"/><path class="lc-line" d="' + path + '"/>' : "") + tip + dots + labels + "</svg></div>";
 
-    var recent = state.evidence.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 6).map(function (e) {
-      return '<li><span class="ra-ico">' + icon("files") + '</span><div class="ra-b"><button class="rec-link" type="button" data-act="rec" data-id="' + esc(e.id) + '">' + esc(e.title) + '</button><span class="small muted">' + esc(project(e.project).name) + " · " + esc(e.type || "") + '</span></div><span class="stamp">' + longDate(e.date) + "</span></li>";
+    // claim strength by category
+    var pb = sc ? sc.cats.filter(function (k) { return k.pct != null; }).map(function (k) {
+      return '<li><div class="pb-h"><span>' + esc(k.c.t) + '</span><span class="num">' + k.pct + '%</span></div><span class="pb-t" aria-hidden="true"><span style="width:' + k.pct + '%"></span></span></li>';
+    }).join("") : "";
+    var strengthCard = '<div class="card ov-card"><div class="row between"><h2>Claim strength</h2><a class="link-sm" href="#strength">Details</a></div><ul class="pbars">' + pb + "</ul></div>";
+
+    // project cards
+    var pcards = state.projects.map(function (pr) {
+      var s = projectStats(pr);
+      return '<a class="pcard" href="#project/' + pr.id + '"><div class="row between"><span class="mini-ico sm">' + icon("flask") + '</span><span class="small muted">' + plural(s.recs.length, "record", "records") + "</span></div>" +
+        "<b>" + esc(pr.name) + '</b><span class="small muted">T661 lines ' + s.lines + "/3 · " + fmt(s.hrs) + " h this week</span>" +
+        '<span class="tags"><span class="tag' + (pr.status === "Active" ? "" : " quiet") + '">' + esc(pr.status || "Active") + "</span>" + (s.lines === 3 ? '<span class="tag">Written up</span>' : '<span class="tag quiet">Write-up due</span>') + "</span>" +
+        '<span class="pcard-f small muted">' + (s.last ? "Last record " + longDate(s.last) : "No records yet") + "</span></a>";
     }).join("");
+    var projectsCard = '<div class="card ov-card"><div class="row between"><h2>Projects</h2><a class="link-sm" href="#projects">All projects</a></div>' +
+      (pcards ? '<div class="pcards">' + pcards + "</div>" : '<div class="empty"><p class="hint">No projects yet.</p><button class="btn alt small" type="button" data-act="wizard">Add your first project</button></div>') + "</div>";
 
-    var actions = g.slice(0, 4).map(gapItem).join("");
-    return '<section class="stack" aria-labelledby="h-main">' +
-      '<div class="ov-head">' +
-        '<div class="stack-sm"><p class="eyebrow">' + hello + " · " + esc(ORG_NAME.replace(" (sample)", "")) + "</p>" +
-        '<h1 id="h-main" class="ov-h1">' + heroH1 + "</h1>" +
-        '<p class="lead">' + plural(total, "record", "records") + " filed across " + plural(state.projects.length, "project", "projects") + ", each dated the day it went in. Timesheets are " + c.pct + "% complete over the last 8 weeks.</p></div>" +
-        '<div class="row ov-cta">' + cta + '<a class="btn alt" href="#evidence">File a record</a></div>' +
-      "</div>" +
-      flashHtml() +
-      setupHtml() +
-      kpis +
-      '<div class="dash-row">' + readinessHtml() + timelineHtml() + "</div>" +
-      '<div class="grid2 ov-2">' +
-        '<div class="card stack-sm rv"><div class="row between"><h2>Hours this week</h2><a class="link-sm" href="#time">Timesheets</a></div><p class="hint">Week of ' + longDate(WEEK_OF) + ", by project.</p>" + hours + "</div>" +
-        '<div class="card stack-sm rv"><div class="row between"><h2>Filing activity</h2><span class="stamp">' + plural(filedIn, "record", "records") + '</span></div><p class="hint">Records filed per day, last 26 weeks. Steady beats a year-end rush.</p>' + heat + "</div>" +
-      "</div>" +
-      projectTableHtml() +
-      '<div class="grid2 ov-2">' +
-        (g.length ? '<div class="stack-sm rv"><div class="row between"><h2>Start with these</h2><a class="link-sm" href="#gaps">All gaps</a></div><ul class="gaps">' + actions + "</ul></div>"
-                  : '<p class="flash">All checks pass. <a href="#export">Export the binder</a>.</p>') +
-        '<div class="stack-sm"><div class="card stack-sm rv"><div class="row between"><h2>Recent records</h2><a class="link-sm" href="#evidence">Evidence</a></div><ul class="recent">' + (recent || '<li class="muted">No records yet.</li>') + "</ul></div>" +
-        (GUIDE ? GUIDE.overviewCard() : "") + "</div>" +
-      "</div>" +
+    // hours by project: rounded bars
+    var hrs = state.projects.map(function (pr) { return [pr.name, state.people.reduce(function (s, p) { return s + (Number((state.hours[p.id] || {})[pr.id]) || 0); }, 0)]; });
+    hrs.push(["Other work", state.people.reduce(function (s, p) { return s + (Number((state.hours[p.id] || {}).other) || 0); }, 0)]);
+    var hmax = Math.max.apply(null, hrs.map(function (r) { return r[1]; }).concat([1])), top1 = hrs.reduce(function (b, r, i) { return r[1] > hrs[b][1] ? i : b; }, 0);
+    var vb = '<div class="vbars" role="img" aria-label="Hours this week: ' + hrs.map(function (r) { return esc(r[0]) + " " + fmt(r[1]); }).join(", ") + '">' + hrs.map(function (r, i) {
+      return '<div class="vb' + (i === top1 ? " vb-hi" : "") + (i === hrs.length - 1 ? " other" : "") + '" title="' + esc(r[0]) + ": " + fmt(r[1]) + ' h"><span class="vb-v num">' + fmt(r[1]) + '</span><span class="vb-bar" style="height:' + Math.max(4, r[1] / hmax * 100).toFixed(0) + '%"></span><span class="vb-l">' + esc(i === hrs.length - 1 ? "Other" : initials(r[0])) + "</span></div>";
+    }).join("") + "</div>";
+    var hoursCard = '<div class="card ov-card"><div class="row between"><h2>Hours this week</h2><a class="link-sm" href="#time">Timesheets</a></div><p class="hint">Week of ' + longDate(WEEK_OF) + ". Timesheets " + c.pct + "% complete over 8 weeks.</p>" + vb + "</div>";
+
+    // recent records table and activity
+    var recent = state.evidence.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    var rows = recent.slice(0, 5).map(function (e) {
+      var pn = person(e.person).name;
+      return '<tr><td><button class="rec-link" type="button" data-act="rec" data-id="' + esc(e.id) + '">' + esc(e.title) + "</button>" + (e.file ? "<br>" + fileChip(e) : "") + "</td>" +
+        '<td><span class="who">' + avatarSm(pn) + esc(pn) + "</span></td><td>" + esc(project(e.project).name) + '<br><span class="small muted">' + esc(e.type) + '</span></td><td class="nowrap">' + longDate(e.date) + "</td></tr>";
+    }).join("");
+    var tableCard = '<div class="card ov-card"><div class="row between"><h2>Recent records</h2><a class="link-sm" href="#evidence">All records</a></div>' +
+      '<div class="table-wrap flat"><table class="glance"><thead><tr><th>Record</th><th>Person</th><th>Project</th><th>Filed</th></tr></thead><tbody>' + (rows || '<tr><td colspan="4" class="muted">No records yet.</td></tr>') + "</tbody></table></div></div>";
+    var last = "", act = recent.slice(0, 7).map(function (e) {
+      var grp = dayGroup(e.date), head = grp !== last ? '<li class="act-g">' + grp + "</li>" : ""; last = grp;
+      return head + '<li class="act-i"><span class="act-ico">' + icon("files") + '</span><div><p><b>' + esc(person(e.person).name) + "</b> filed " + esc(e.title) + '</p><span class="small muted">' + esc(project(e.project).name) + " · " + longDate(e.date) + "</span></div></li>";
+    }).join("");
+    var actCard = '<div class="card ov-card"><div class="row between"><h2>Recent activity</h2></div><ul class="act-l">' + (act || '<li class="muted">Nothing yet.</li>') + "</ul></div>";
+
+    var needs = g.slice(0, 4).map(function (x) {
+      return '<li><span class="bdot' + (x.sev === "high" ? " hi" : "") + '" aria-hidden="true"></span><div><b>' + esc(x.title) + '</b><span class="small muted">' + esc(x.detail) + '</span></div><a class="btn alt small" href="#' + x.go + '">' + esc(x.label) + "</a></li>";
+    }).join("");
+    var needsCard = '<div class="card ov-card"><div class="row between"><h2>Needs attention</h2><a class="link-sm" href="#gaps">All gaps</a></div>' + (needs ? '<ul class="needs">' + needs + "</ul>" : '<p class="flash">All checks pass. <a href="#export">Export the binder</a>.</p>') + "</div>";
+
+    return '<section class="stack ov" aria-labelledby="h-main">' +
+      pageHead("Overview", heroH1, "", '<a class="btn alt" href="#evidence">' + icon("plus") + "File a record</a>" + cta) +
+      tabs + flashHtml() + setupHtml() +
+      '<div class="ov-grid g1">' + minis + lineCard + strengthCard + "</div>" +
+      '<div class="ov-grid g2">' + projectsCard + hoursCard + "</div>" +
+      '<div class="ov-grid g2">' + tableCard + actCard + "</div>" +
+      '<div class="ov-grid g2">' + needsCard + (GUIDE ? GUIDE.overviewCard() : "") + "</div>" +
       "</section>";
   }
 
@@ -438,9 +489,9 @@
   function evidenceRows(list) {
     return list.map(function (e) {
       return '<tr><td data-v="' + e.date + '"><span class="stamp">' + longDate(e.date) + "</span></td>" +
-        '<td><button class="rec-link" type="button" data-act="rec" data-id="' + esc(e.id) + '">' + esc(e.title) + "</button>" + (e.file ? '<br><span class="small muted rec-file">' + icon(fileIcon(fileKind(e.file, localFiles[e.id] && localFiles[e.id].type))) + esc(e.file) + "</span>" : "") + "</td>" +
+        '<td><button class="rec-link" type="button" data-act="rec" data-id="' + esc(e.id) + '">' + esc(e.title) + "</button>" + (e.file ? "<br>" + fileChip(e) : "") + "</td>" +
         "<td>" + esc(e.type) + "</td><td>" + esc(project(e.project).name) + "</td>" +
-        "<td>" + esc(person(e.person).name) + "</td><td>" + esc(e.source) + "</td>" +
+        '<td><span class="who">' + avatarSm(person(e.person).name) + esc(person(e.person).name) + "</span></td><td>" + esc(e.source) + "</td>" +
         '<td><span class="pill quiet">' + ICON_LOCK + "Locked</span></td></tr>";
     }).join("");
   }
@@ -839,6 +890,14 @@
     if (chips) chips.innerHTML = '<span class="chip">' + icon("calendar-blank") + "Tax year " + YEAR + "</span>" +
       '<span class="chip strong" title="SR&amp;ED reporting deadline: 18 months after the year end">' + icon("clock") + "Claim due " + longDate(claimDue()) + "</span>";
     if (typeof updateBell === "function") updateBell();
+    var gd = document.getElementById("greetDate"), gt = document.getElementById("greetTitle"), uc = document.getElementById("userChip");
+    if (gd) gd.textContent = new Date(TODAY + "T12:00:00").toLocaleDateString("en-CA", {weekday: "long", day: "numeric", month: "long", year: "numeric"});
+    if (gt) gt.innerHTML = 'Welcome back<span class="gt-org"> to ' + esc(ORG_NAME.replace(" (sample)", "")) + "</span>";
+    if (uc) {
+      var uname = MODE === "live" && me ? (me.full_name || me.email || "") : "Demo account";
+      var urole = {kv: "KV admin", admin: "Company admin", staff: "Staff", advisor: "Advisor"}[ROLE] || "";
+      uc.innerHTML = '<span class="avatar" aria-hidden="true">' + esc((uname || "?").charAt(0).toUpperCase()) + '</span><span class="uc-t"><b>' + esc(uname) + "</b><span>" + esc(urole) + "</span></span>";
+    }
     var so = document.getElementById("sideOrg");
     if (so && MODE === "demo") so.innerHTML = '<p class="org-name">' + esc(ORG_NAME) + '</p><p class="org-sub">Tax year ' + YEAR + "</p>";
   }
@@ -1104,7 +1163,7 @@
   }
   function initSide() {
     [].forEach.call(document.querySelectorAll("[data-icon]"), function (el) { el.outerHTML = icon(el.getAttribute("data-icon")); });
-    setSide(mqNarrow.matches ? false : sidePref() !== "closed", false);
+    setSide(mqNarrow.matches ? false : sidePref() === "open", false);   // slim icon rail by default
   }
   document.getElementById("sideToggle").addEventListener("click", function () { setSide(appShell.getAttribute("data-side") !== "open", true); });
   document.getElementById("openSide").addEventListener("click", function () { setSide(true, true); });
