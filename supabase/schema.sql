@@ -202,6 +202,23 @@ drop trigger if exists invitations_apply on public.invitations;
 create trigger invitations_apply before insert on public.invitations
   for each row execute function public.apply_invitation();
 
+-- Admins and staff who join are put on the weekly timesheet automatically.
+create or replace function public.add_member_to_timesheet() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.role in ('admin','staff') and not exists (
+    select 1 from people where org_id = new.org_id and user_id = new.user_id) then
+    insert into people (org_id, user_id, name)
+    select new.org_id, new.user_id, coalesce(nullif(p.full_name, ''), split_part(p.email, '@', 1))
+    from profiles p where p.id = new.user_id;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists memberships_timesheet on public.memberships;
+create trigger memberships_timesheet after insert on public.memberships
+  for each row execute function public.add_member_to_timesheet();
+
 -- Evidence cannot be edited after filing (only the project link may change).
 create or replace function public.lock_evidence() returns trigger
 language plpgsql as $$
