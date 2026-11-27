@@ -258,35 +258,12 @@
   function vOverview() {
     var g = gaps(), total = state.evidence.length, c = completion();
     var high = g.filter(function (x) { return x.sev === "high"; }).length;
-
-    var counts = MONTHS.map(function () { return 0; });
-    state.evidence.forEach(function (e) {
-      if (e.date.slice(0, 4) === YEAR) counts[Number(e.date.slice(5, 7)) - 1]++;
-    });
-    var max = Math.max.apply(null, counts.concat([1]));
-    var W = 640, base = 128, top = 30, step = W / 12, bw = 30;
-    var curMonth = Number(TODAY.slice(5, 7)) - 1;
-    var grid = "";
-    for (var i = 1; i <= max; i++) {
-      var gy = base - (i / max) * (base - top);
-      grid += '<line class="grid" x1="0" x2="' + W + '" y1="' + gy + '" y2="' + gy + '"/>';
-    }
-    var bars = counts.map(function (n, idx) {
-      var x = idx * step + (step - bw) / 2;
-      var h = (n / max) * (base - top);
-      var cls = "bar" + (idx === curMonth ? " now" : "");
-      var out = "";
-      if (n > 0) {
-        out += '<rect class="' + cls + '" x="' + x + '" y="' + (base - h) + '" width="' + bw + '" height="' + h + '" rx="3"/>';
-        out += '<text class="val" x="' + (x + bw / 2) + '" y="' + (base - h - 8) + '" text-anchor="middle">' + n + "</text>";
-      }
-      out += '<text class="lbl" x="' + (x + bw / 2) + '" y="' + (base + 22) + '" text-anchor="middle">' + MONTHS[idx] + "</text>";
-      return out;
-    }).join("");
-    var aria = "Records filed per month in " + YEAR + ": " + MONTHS.map(function (m, idx) { return m + " " + counts[idx]; }).join(", ");
-
-    var actions = g.slice(0, 4).map(gapItem).join("");
     var first = g[0];
+    var due = claimDue(), left = days(TODAY, due);
+    var est = GUIDE && GUIDE.estimate ? GUIDE.estimate() : null;
+    var strength = CLAIM ? CLAIM.score().pct : null;
+    var hour = new Date().getHours();
+    var hello = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
     var heroH1 = g.length ?
       '<span class="soft">' + plural(g.length, "gap", "gaps") + " to close.</span> Then your " + YEAR + ' binder is <span class="hot">ready</span>.' :
       '<span class="soft">Nothing missing.</span> Your ' + YEAR + ' binder is <span class="hot">ready</span>.';
@@ -294,45 +271,70 @@
       '<a class="btn" href="#' + first.go + '"' + (first.open ? ' data-open="' + first.open + '"' : "") + '>Fix the first gap <span class="arr" aria-hidden="true">&rarr;</span></a>' :
       '<a class="btn" href="#export">Export the binder <span class="arr" aria-hidden="true">&rarr;</span></a>';
 
-    var recent = state.evidence.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 8);
-    var mqItems = function (dup) {
-      return recent.map(function (e) {
-        return '<span class="mq-item' + (dup ? " mq-dup" : "") + '"' + (dup ? ' aria-hidden="true"' : "") + '><span class="stamp">' + e.date + "</span>" + esc(e.title) + "</span>";
-      }).join("");
+    var kpi = function (href, label, big, sub, extra) {
+      return '<a class="kpi rv" href="#' + href + '"><span class="kpi-l">' + label + '</span><span class="kpi-v num">' + big + '</span><span class="kpi-s">' + sub + "</span>" + (extra || "") + "</a>";
     };
+    var meter = function (p) { return '<span class="kpi-bar" aria-hidden="true"><span style="width:' + Math.max(0, Math.min(100, p)) + '%"></span></span>'; };
+    var kpis = '<div class="kpis">' +
+      kpi("claimable", "Estimated credit", est == null ? "–" : money.format(est), "Federal plus provincial, from your costs") +
+      kpi("strength", "Claim strength", strength == null ? "–" : strength + "%", strength >= 85 ? "Strong. Ready for your advisor" : strength >= 65 ? "Fair. A few items to collect" : "At risk. Collect the missing proof", strength == null ? "" : meter(strength)) +
+      kpi("deadlines", "SR&amp;ED deadline", left >= 0 ? left + "<small> days</small>" : "Passed", longDate(due)) +
+      kpi("gaps", "Open gaps", String(g.length), high + " to fix first, " + (g.length - high) + " to fix soon") +
+      "</div>";
 
+    // Hours this week, by project
+    var rows = state.projects.map(function (pr) {
+      return [pr.name, state.people.reduce(function (s, p) { return s + (Number((state.hours[p.id] || {})[pr.id]) || 0); }, 0)];
+    });
+    rows.push(["Other work", state.people.reduce(function (s, p) { return s + (Number((state.hours[p.id] || {}).other) || 0); }, 0)]);
+    var hmax = Math.max.apply(null, rows.map(function (r) { return r[1]; }).concat([1]));
+    var hours = '<ul class="hbars">' + rows.map(function (r, i) {
+      return '<li class="' + (i === rows.length - 1 ? "other" : "") + '"><span class="hb-n" title="' + esc(r[0]) + '">' + esc(r[0]) + '</span><span class="hb-t" aria-hidden="true"><span style="width:' + (r[1] / hmax * 100).toFixed(1) + '%"></span></span><span class="hb-v num">' + fmt(r[1]) + " h</span></li>";
+    }).join("") + "</ul>";
+
+    // Filing activity: records per day over the last 26 weeks
+    var WEEKS = 26, startDay = addDays(WEEK_OF, -7 * (WEEKS - 1)), byDay = {};
+    state.evidence.forEach(function (e) { byDay[e.date] = (byDay[e.date] || 0) + 1; });
+    var cells = "", cs = 12, gap = 3, filedIn = 0;
+    for (var w = 0; w < WEEKS; w++) {
+      for (var d = 0; d < 7; d++) {
+        var day = addDays(startDay, w * 7 + d);
+        if (day > TODAY) continue;
+        var n = byDay[day] || 0; filedIn += n;
+        var lvl = n === 0 ? 0 : n === 1 ? 1 : n === 2 ? 2 : 3;
+        cells += '<rect class="hm l' + lvl + '" x="' + (w * (cs + gap)) + '" y="' + (d * (cs + gap)) + '" width="' + cs + '" height="' + cs + '" rx="3"><title>' + day + ": " + plural(n, "record", "records") + "</title></rect>";
+      }
+    }
+    var hmW = WEEKS * (cs + gap) - gap, hmH = 7 * (cs + gap) - gap;
+    var heat = '<div class="hm-wrap"><svg viewBox="0 0 ' + hmW + " " + hmH + '" role="img" aria-label="' + plural(filedIn, "record", "records") + ' filed in the last 26 weeks">' + cells + "</svg></div>" +
+      '<div class="hm-legend"><span>Less</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><span>More</span></div>';
+
+    var recent = state.evidence.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 6).map(function (e) {
+      return '<li><span class="ra-ico">' + icon("files") + '</span><div class="ra-b"><b>' + esc(e.title) + '</b><span class="small muted">' + esc(project(e.project).name) + " · " + esc(e.type || "") + '</span></div><span class="stamp">' + e.date + "</span></li>";
+    }).join("");
+
+    var actions = g.slice(0, 4).map(gapItem).join("");
     return '<section class="stack" aria-labelledby="h-main">' +
-      '<div class="hero">' +
-        '<div class="stack-sm" style="gap:20px">' +
-          '<p class="badge rv in"><span class="dot" aria-hidden="true"></span>Checked today, ' + TODAY + "</p>" +
-          '<h1 id="h-main" class="rv">' + heroH1 + "</h1>" +
-          '<p class="lead rv" style="transition-delay:.08s">' + plural(total, "record", "records") + " filed across " + plural(state.projects.length, "project", "projects") + ", each dated the day it went in. Close the gaps and hand it over.</p>" +
-          '<div class="row rv" style="transition-delay:.16s;margin-top:6px">' + cta + '<a class="btn alt" href="#evidence">File a record</a></div>' +
-        "</div>" +
-        '<figure class="hero-media rv" style="transition-delay:.12s">' +
-          '<div class="hero-frame"><img src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=1400&amp;q=78&amp;auto=format&amp;fit=crop" width="1400" height="933" alt="An engineer working at a laptop beside test equipment in a lab" fetchpriority="high">' +
-          '<span class="hero-light" aria-hidden="true"></span><span class="hero-light glow" aria-hidden="true"></span><span class="hero-light b" aria-hidden="true"></span></div>' +
-          '<figcaption>Stand-in photo from <a href="https://unsplash.com" rel="noopener" target="_blank">Unsplash</a>, not a member of your team.</figcaption>' +
-        "</figure>" +
+      '<div class="ov-head">' +
+        '<div class="stack-sm"><p class="eyebrow">' + hello + " · " + esc(ORG_NAME.replace(" (sample)", "")) + "</p>" +
+        '<h1 id="h-main" class="ov-h1">' + heroH1 + "</h1>" +
+        '<p class="lead">' + plural(total, "record", "records") + " filed across " + plural(state.projects.length, "project", "projects") + ", each dated the day it went in. Timesheets are " + c.pct + "% complete over the last 8 weeks.</p></div>" +
+        '<div class="row ov-cta">' + cta + '<a class="btn alt" href="#evidence">File a record</a></div>' +
       "</div>" +
       flashHtml() +
-      '<div class="tiles">' +
-        '<div class="tile solid rv"><span class="big" data-count>' + total + '</span><span class="label">Records filed</span><span class="sub">Across ' + plural(state.projects.length, "project", "projects") + "</span></div>" +
-        '<div class="tile rv" style="transition-delay:.06s"><span class="big" data-count>' + fmt(rdHours()) + '</span><span class="label">R&amp;D hours this week</span><span class="sub">Week of ' + WEEK_OF + ", " + plural(state.people.length, "person", "people") + "</span></div>" +
-        '<div class="tile rv" style="transition-delay:.12s"><span class="big" data-count>' + c.pct + '%</span><span class="label">Timesheets done</span><span class="sub">' + c.done + " of " + c.total + " over 8 weeks. Target 80%.</span></div>" +
-        '<div class="tile rv' + (g.length ? " alert" : "") + '" style="transition-delay:.18s"><span class="big" data-count>' + g.length + '</span><span class="label">Gaps to close</span><span class="sub">' + high + " to fix first, " + (g.length - high) + " to fix soon</span></div>" +
-      "</div>" +
+      kpis +
       '<div class="dash-row">' + readinessHtml() + timelineHtml() + "</div>" +
+      '<div class="grid2 ov-2">' +
+        '<div class="card stack-sm rv"><div class="row between"><h2>Hours this week</h2><a class="link-sm" href="#time">Timesheets</a></div><p class="hint">Week of ' + longDate(WEEK_OF) + ", by project.</p>" + hours + "</div>" +
+        '<div class="card stack-sm rv"><div class="row between"><h2>Filing activity</h2><span class="stamp">' + plural(filedIn, "record", "records") + '</span></div><p class="hint">Records filed per day, last 26 weeks. Steady beats a year-end rush.</p>' + heat + "</div>" +
+      "</div>" +
       projectTableHtml() +
-      (g.length ? '<div class="stack-sm"><h2 class="rv">Start with these.</h2><ul class="gaps">' + actions + "</ul>" +
-                  (g.length > 4 ? '<p><a href="#gaps">' + plural(g.length - 4, "more gap", "more gaps") + " in Gap alerts</a></p>" : "") + "</div>"
-                : '<p class="flash">All checks pass. <a href="#export">Export the binder</a>.</p>') +
-      (GUIDE ? GUIDE.overviewCard() : "") +
-      '<div class="stack-sm rv"><h2>Recently filed</h2><div class="marquee"><div class="mq-track">' + mqItems(false) + mqItems(true) + "</div></div></div>" +
-      '<div class="card chart stack-sm rv"><h2>A steady trail, month by month.</h2>' +
-      '<p class="hint">Reviewers want to see work recorded as it happened, not pieced together at year end.</p>' +
-      '<svg viewBox="0 0 ' + W + ' 160" role="img" aria-label="' + esc(aria) + '">' + grid +
-      '<line class="axis" x1="0" x2="' + W + '" y1="' + base + '" y2="' + base + '"/>' + bars + "</svg></div>" +
+      '<div class="grid2 ov-2">' +
+        (g.length ? '<div class="stack-sm rv"><div class="row between"><h2>Start with these</h2><a class="link-sm" href="#gaps">All gaps</a></div><ul class="gaps">' + actions + "</ul></div>"
+                  : '<p class="flash">All checks pass. <a href="#export">Export the binder</a>.</p>') +
+        '<div class="stack-sm"><div class="card stack-sm rv"><div class="row between"><h2>Recent records</h2><a class="link-sm" href="#evidence">Evidence</a></div><ul class="recent">' + (recent || '<li class="muted">No records yet.</li>') + "</ul></div>" +
+        (GUIDE ? GUIDE.overviewCard() : "") + "</div>" +
+      "</div>" +
       "</section>";
   }
 
@@ -663,6 +665,7 @@
     var chips = document.getElementById("topChips");
     if (chips) chips.innerHTML = '<span class="chip">' + icon("calendar-blank") + "Tax year " + YEAR + "</span>" +
       '<span class="chip strong" title="SR&amp;ED reporting deadline: 18 months after the year end">' + icon("clock") + "Claim due " + longDate(claimDue()) + "</span>";
+    if (typeof updateBell === "function") updateBell();
     var so = document.getElementById("sideOrg");
     if (so && MODE === "demo") so.innerHTML = '<p class="org-name">' + esc(ORG_NAME) + '</p><p class="org-sub">Tax year ' + YEAR + "</p>";
   }
@@ -943,6 +946,20 @@
     }
     app.classList.remove("enter"); void app.offsetWidth; app.classList.add("enter");
     [].forEach.call(els, function (el) { io.observe(el); });
+    // Safety net: anything already on screen is shown even if the observer is slow to fire
+    // (background tabs, embedded previews), so a page never sits blank.
+    var onScreen = function () {
+      var vh = window.innerHeight || 800;
+      [].forEach.call(app.querySelectorAll(".rv:not(.in)"), function (el) {
+        var r = el.getBoundingClientRect();
+        if (r.top < vh && r.bottom > 0) {
+          el.classList.add("in"); io.unobserve(el);
+          [].forEach.call(el.querySelectorAll("[data-count]"), countUp);
+        }
+      });
+    };
+    requestAnimationFrame(function () { requestAnimationFrame(onScreen); });
+    setTimeout(onScreen, 700);
   }
 
   // Stat counters: count up to the real number, keep any suffix.
@@ -975,7 +992,9 @@
   }
 
   // Custom cursor and magnetic buttons: mouse users only.
-  if (!reduced && window.matchMedia && window.matchMedia("(pointer: fine)").matches) {
+  // Off in the app: a custom cursor slows people down in a data-heavy tool.
+  var FANCY_CURSOR = false;
+  if (FANCY_CURSOR && !reduced && window.matchMedia && window.matchMedia("(pointer: fine)").matches) {
     var root = document.documentElement;
     root.classList.add("has-cursor");
     var dot = document.createElement("div"), ring = document.createElement("div"), label = document.createElement("div");
@@ -1459,6 +1478,96 @@
       location.hash = "overview"; openOrg(newId); return;
     }
   });
+
+  /* ---------- search (Ctrl/Cmd + K) and notifications ---------- */
+  var cmd = document.getElementById("cmd"), cmdInput = document.getElementById("cmdInput"), cmdList = document.getElementById("cmdList");
+  var cmdItems = [], cmdSel = 0, cmdLastFocus = null;
+  function cmdSource() {
+    var out = NAV.map(function (n) { return {kind: "Page", label: n[2], icon: NAV_ICON[n[0]], go: n[0]}; });
+    state.projects.forEach(function (p) { out.push({kind: "Project", label: p.name, icon: "flask", go: "projects", open: p.id}); });
+    [["File a record", "evidence", "plus"], ["Log this week’s hours", "time", "clock"], ["Log a grant or subsidy", "funding", "receipt"],
+     ["Check a project’s eligibility", "eligibility", "seal-check"], ["Estimate your credit", "claimable", "calculator"],
+     ["Change the year end", "deadlines", "calendar-blank"], ["Copy the request list", "strength", "gauge"], ["Export the binder", "export", "books"]
+    ].forEach(function (a) { out.push({kind: "Action", label: a[0], icon: a[2], go: a[1]}); });
+    state.evidence.slice(-40).reverse().forEach(function (e) { out.push({kind: "Record", label: e.title, sub: e.date, icon: "files", go: "evidence"}); });
+    return out;
+  }
+  function cmdRender() {
+    var q = cmdInput.value.trim().toLowerCase();
+    var all = cmdSource();
+    cmdItems = (q ? all.filter(function (it) { return (it.label + " " + it.kind).toLowerCase().indexOf(q) >= 0; }) : all.filter(function (it) { return it.kind !== "Record"; })).slice(0, 12);
+    cmdSel = Math.min(cmdSel, Math.max(0, cmdItems.length - 1));
+    var last = "";
+    cmdList.innerHTML = cmdItems.length ? cmdItems.map(function (it, i) {
+      var headR = it.kind !== last ? '<li class="cmd-g" role="presentation">' + it.kind + "s</li>" : ""; last = it.kind;
+      return headR + '<li id="cmd-' + i + '" role="option" aria-selected="' + (i === cmdSel) + '" class="cmd-i' + (i === cmdSel ? " on" : "") + '" data-i="' + i + '">' + icon(it.icon) +
+        "<span>" + esc(it.label) + "</span>" + (it.sub ? '<span class="cmd-sub">' + esc(it.sub) + "</span>" : "") + "</li>";
+    }).join("") : '<li class="cmd-empty">No matches. Try a project name or a page.</li>';
+    cmdInput.setAttribute("aria-activedescendant", cmdItems.length ? "cmd-" + cmdSel : "");
+    var on = cmdList.querySelector(".on"); if (on && on.scrollIntoView) on.scrollIntoView({block: "nearest"});
+  }
+  function cmdOpen() {
+    if (!cmd || !shell || shell.hidden) return;
+    cmdLastFocus = document.activeElement; cmd.hidden = false; cmdInput.value = ""; cmdSel = 0; cmdRender();
+    setTimeout(function () { cmdInput.focus(); }, 0);
+  }
+  function cmdClose() { if (!cmd || cmd.hidden) return; cmd.hidden = true; if (cmdLastFocus && cmdLastFocus.focus) cmdLastFocus.focus(); }
+  function cmdGo(it) {
+    if (!it) return;
+    cmdClose();
+    if (it.open) { state.open = {}; state.open[it.open] = true; }
+    if (location.hash === "#" + it.go) render(true); else location.hash = it.go;
+    if (it.open) setTimeout(function () {
+      var d = app.querySelector('details.proj[open]');
+      if (d) d.scrollIntoView({block: "start", behavior: "auto"});
+    }, 60);
+  }
+  if (cmd) {
+    cmdInput.addEventListener("input", function () { cmdSel = 0; cmdRender(); });
+    cmdInput.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown") { e.preventDefault(); cmdSel = Math.min(cmdItems.length - 1, cmdSel + 1); cmdRender(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); cmdSel = Math.max(0, cmdSel - 1); cmdRender(); }
+      else if (e.key === "Enter") { e.preventDefault(); cmdGo(cmdItems[cmdSel]); }
+      else if (e.key === "Escape") { e.preventDefault(); cmdClose(); }
+    });
+    cmdList.addEventListener("click", function (e) { var li = e.target.closest("[data-i]"); if (li) cmdGo(cmdItems[Number(li.getAttribute("data-i"))]); });
+    cmd.addEventListener("click", function (e) { if (e.target.hasAttribute("data-cmd-close")) cmdClose(); });
+    document.getElementById("cmdBtn").addEventListener("click", cmdOpen);
+    document.addEventListener("keydown", function (e) {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) { e.preventDefault(); cmd.hidden ? cmdOpen() : cmdClose(); }
+    });
+  }
+
+  var bellBtn = document.getElementById("bellBtn"), bellPop = document.getElementById("bellPop"), bellN = document.getElementById("bellN");
+  function bellItems() {
+    var out = gaps().slice(0, 5).map(function (x) { return {t: x.title, d: x.detail, go: x.go, open: x.open, hi: x.sev === "high"}; });
+    var due = claimDue(), t2 = addMonthsCRA(yearEnd(), 6), n1 = days(TODAY, t2), n2 = days(TODAY, due);
+    if (n1 >= 0 && n1 <= 120) out.unshift({t: "T2 return due in " + plural(n1, "day", "days"), d: "File the SR&ED claim with it on " + longDate(t2) + ".", go: "deadlines", hi: n1 <= 30});
+    if (n2 >= 0 && n2 <= 120) out.unshift({t: "SR&ED deadline in " + plural(n2, "day", "days"), d: "The final date is " + longDate(due) + ". No extensions.", go: "deadlines", hi: true});
+    return out;
+  }
+  function updateBell() {
+    if (!bellN) return;
+    var n = bellItems().filter(function (x) { return x.hi; }).length;
+    bellN.hidden = !n; bellN.textContent = n;
+    bellBtn.setAttribute("aria-label", "Notifications" + (n ? ", " + n + " need attention" : ""));
+  }
+  function bellToggle(open) {
+    var show = open == null ? bellPop.hidden : open;
+    if (show) {
+      var items = bellItems();
+      bellPop.innerHTML = '<p class="bell-h">Needs attention</p>' + (items.length ? '<ul>' + items.map(function (x) {
+        return '<li><a href="#' + x.go + '"' + (x.open ? ' data-open="' + x.open + '"' : "") + '><span class="bdot' + (x.hi ? " hi" : "") + '" aria-hidden="true"></span><span><b>' + esc(x.t) + '</b><span class="small muted">' + esc(x.d) + "</span></span></a></li>";
+      }).join("") + "</ul>" : '<p class="small muted">Nothing needs attention. Nice work.</p>');
+    }
+    bellPop.hidden = !show; bellBtn.setAttribute("aria-expanded", String(show));
+  }
+  if (bellBtn) {
+    bellBtn.addEventListener("click", function (e) { e.stopPropagation(); bellToggle(); });
+    bellPop.addEventListener("click", function (e) { if (e.target.closest("a")) bellToggle(false); });
+    document.addEventListener("click", function (e) { if (!bellPop.hidden && !e.target.closest(".bell-wrap")) bellToggle(false); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !bellPop.hidden) { bellToggle(false); bellBtn.focus(); } });
+  }
 
   /* ---------- start ---------- */
   var BASE_NAV = NAV.slice();

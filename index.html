@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap">
 <link rel="preconnect" href="https://images.unsplash.com">
 <meta name="theme-color" content="#234E4B">
-<link rel="stylesheet" href="assets/app.css?v=20261127d">
+<link rel="stylesheet" href="assets/app.css?v=20261127g">
 </head>
 <body>
 <span id="top-sentinel" aria-hidden="true"></span>
@@ -43,6 +43,11 @@
       </button>
       <div class="crumbs"><span id="crumbOrg"></span><span class="sep" aria-hidden="true">/</span><strong id="crumbPage">Overview</strong></div>
       <div class="top-chips" id="topChips"></div>
+      <div class="top-tools">
+        <button class="tool-btn" id="cmdBtn" type="button" aria-haspopup="dialog" title="Search (Ctrl or Cmd + K)"><span data-icon="magnifying-glass"></span><span class="tool-label">Search</span><kbd>⌘K</kbd></button>
+        <div class="bell-wrap"><button class="icon-btn" id="bellBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="bellPop" title="Notifications"><span class="sr">Notifications</span><span data-icon="bell"></span><span class="bell-n" id="bellN" hidden></span></button>
+          <div class="bell-pop" id="bellPop" hidden></div></div>
+      </div>
     </header>
     <div class="shell">
       <main id="app" tabindex="-1"></main>
@@ -54,12 +59,19 @@
 </div>
 
 <button class="to-top" id="toTop" type="button" aria-label="Back to top">&uarr;</button>
+<div class="cmd" id="cmd" hidden>
+  <div class="cmd-scrim" data-cmd-close></div>
+  <div class="cmd-box" role="dialog" aria-modal="true" aria-label="Search the portal">
+    <div class="cmd-in"><span data-icon="magnifying-glass"></span><input id="cmdInput" type="text" placeholder="Search pages, projects and actions" autocomplete="off" aria-controls="cmdList" aria-activedescendant=""><kbd>Esc</kbd></div>
+    <ul class="cmd-list" id="cmdList" role="listbox"></ul>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
-<script src="config.js?v=20261127d" defer></script>
-<script src="assets/icons.js?v=20261127d" defer></script>
-<script src="assets/guide.js?v=20261127d" defer></script>
-<script src="assets/claim.js?v=20261127d" defer></script>
-<script src="assets/app.js?v=20261127d" defer></script>
+<script src="config.js?v=20261127g" defer></script>
+<script src="assets/icons.js?v=20261127g" defer></script>
+<script src="assets/guide.js?v=20261127g" defer></script>
+<script src="assets/claim.js?v=20261127g" defer></script>
+<script src="assets/app.js?v=20261127g" defer></script>
 </body>
 </html>

@@ -607,6 +607,7 @@
       groups: {eligibility: "Plan and learn", plans: "Account"},
       views: {eligibility: vEligibility, claimable: vClaimable, programs: vPrograms, learn: vLearn, plans: vPlans},
       overviewCard: overviewCard,
+      estimate: function () { return calc(gs.est || estDefaults()).total; },
       locked: function (r) { return r === "programs" && !fundingAccess(); }
     };
   };
