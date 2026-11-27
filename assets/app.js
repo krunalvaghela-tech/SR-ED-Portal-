@@ -615,6 +615,8 @@
     get mode() { return MODE; },
     get orgId() { return orgId; },
     get billing() { return billing; },
+    get role() { return ROLE; },
+    fetchGuides: function () { return sb ? sb.from("funding_guides").select("slug,title,kind,body,checked_on").order("sort") : Promise.resolve({data: []}); },
     get canManage() { return canManage(); },
     stripe: (window.SRED_CONFIG || {}).stripe || {}
   }) : null;
@@ -651,7 +653,8 @@
       return (grp ? '<p class="nav-group">' + grp + "</p>" : "") +
         '<a class="tab" href="#' + it[0] + '" title="' + esc(it[2]) + '"' + (route === it[0] ? ' aria-current="page"' : "") + ">" +
         icon(NAV_ICON[it[0]]) + '<span class="tab-label">' + esc(it[2]) + "</span>" +
-        (it[0] === "gaps" && n ? '<span class="count" aria-label="' + plural(n, "open gap", "open gaps") + '">' + n + "</span>" : "") + "</a>";
+        (it[0] === "gaps" && n ? '<span class="count" aria-label="' + plural(n, "open gap", "open gaps") + '">' + n + "</span>" : "") +
+        (GUIDE && GUIDE.locked && GUIDE.locked(it[0]) ? '<span class="tab-lock" title="Growth and Scale plans">' + icon("lock-simple") + '<span class="sr">Included in Growth and Scale</span></span>' : "") + "</a>";
     }).join("");
     var cur = NAV.find(function (x) { return x[0] === route; });
     var cp = document.getElementById("crumbPage"), co = document.getElementById("crumbOrg");

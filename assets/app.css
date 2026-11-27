@@ -553,3 +553,19 @@ html.cursor-label-on .cursor-ring,html.cursor-label-on .cursor-dot{opacity:0}
 .ck-w{margin-left:8px;font-size:12.5px;font-weight:700;color:var(--muted);border:1px solid var(--line-strong);border-radius:99px;padding:1px 7px;vertical-align:2px}
 .ck-c{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;max-width:360px}
 @media (max-width:760px){.ck{grid-template-columns:1fr}.ck-c{justify-content:flex-start;max-width:none}}
+
+/* ---------- plan-gated funding guides ---------- */
+.tab-lock{margin-left:auto;display:inline-flex;color:var(--muted)}
+.tab-lock .ico{width:16px;height:16px}
+.app[data-side="closed"] .tab-lock{display:none}
+.locks{list-style:none;margin:0;padding:0;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}
+.lock-i{display:grid;grid-template-columns:22px minmax(0,1fr);gap:12px;align-items:start;border:1.5px dashed var(--line-strong);border-radius:14px;padding:14px 16px}
+.lock-i .ico{width:20px;height:20px;margin-top:2px;color:var(--muted)}
+.lock-i b{display:block}
+.lock-card .lock-big{width:28px;height:28px;color:var(--muted)}
+.ticks li.no{color:var(--muted)}
+.fg-grid{display:grid;gap:24px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));align-items:start}
+.fguide h3{font-size:17px}
+.fguide summary .pill{white-space:normal}
+.fg-steps li{padding-left:4px}
+.demo-prev{flex-wrap:wrap;gap:12px;border-style:dashed}

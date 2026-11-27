@@ -311,8 +311,69 @@
         NOTE + "</section>";
     }
 
+    /* ---------- plan access: funding guides are for Growth and Scale ---------- */
+    var SAMPLE_GUIDE = {"slug": "clean_tech", "title": "Clean Technology ITC", "kind": "Refundable federal tax credit", "body": {"summary": "Up to 30% back on new clean technology equipment, claimed on your T2 return. No application to a program officer: your accountant claims it.", "eligibility": ["The company is a taxable Canadian corporation.", "The equipment is new: not used, or acquired for use, by anyone before you.", "It was acquired and became available for use between March 28, 2023 and December 31, 2034.", "It is used in Canada.", "It is a listed clean technology, such as Class 56 off-road electric or hydrogen vehicles (forklifts, lifts, utility vehicles, drones, autonomous robots), solar or wind generation, energy storage or low-carbon heat equipment.", "If the equipment is installed on a work site after November 28, 2023, you can meet the labour requirements (prevailing wages and 10% apprentice hours). If not, the rate drops by 10 points. Off-road zero-emission vehicles and low-carbon heat equipment are exempt."], "documents": ["Invoices and proof of payment for each item", "Delivery, commissioning or in-service records showing the date it became available for use", "Spec sheets showing what the equipment is, so your accountant can confirm its class", "A dealer or supplier statement that it was new", "Where it is used in Canada", "For installed projects: payroll records for covered workers and apprentice hours", "Any grant or other assistance received for the same equipment"], "steps": ["List every qualifying purchase since March 28, 2023, with the date it went into use and its cost. Upload the invoices to Evidence.", "Ask your accountant to confirm each item's capital cost allowance class (for example Class 56, 43.1 or 43.2).", "Subtract any grants or assistance for the same equipment. Log them in Finance and funding.", "If the labour requirements apply, collect wage and apprentice records and decide whether to attest to them. The attestation is made every year.", "Your accountant files Schedule 75 (T2SCH75) with the T2 return and carries the credit to line 155 of Schedule 31.", "For earlier years, CRA accepts late claims until the later of December 31, 2026 or one year after the return's due date. After that, the credit for those years is gone.", "Keep every record for at least six years. CRA may audit and ask for invoices and labour records."], "timing": "The credit is refunded when CRA assesses the T2. The rate is 30% to the end of 2033 and 15% in 2034.", "sred": "Equipment used for SR&ED may also qualify for SR&ED as capital. Your accountant decides which credit gives more; the same cost cannot be counted twice.", "contact": "CRA Clean Economy ITC pages and specialist line", "link": "https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/corporations/business-tax-credits/clean-economy-itc/clean-technology-itc.html"}};
+    var GUIDE_TITLES = ["Clean Technology ITC", "Regional Tariff Response Initiative (RTRI)", "NRC IRAP", "Mitacs Accelerate"];
+    var guides = null, guidesLoading = false;
+    function fundingAccess() {
+      if (h.mode === "live" && h.role === "kv") return true;
+      var st = planState();
+      if (h.mode === "live" && !h.billing) return false;
+      return ["growth", "scale", "partner"].indexOf(st.plan) >= 0 && ["trialing", "active", "past_due"].indexOf(st.status) >= 0 &&
+        !(st.status === "trialing" && st.trialLeft === 0);
+    }
+    function loadGuides() {
+      if (guides || guidesLoading || h.mode !== "live") return;
+      guidesLoading = true;
+      h.fetchGuides().then(function (r) { guides = (r && r.data) || []; guidesLoading = false; if (location.hash === "#programs") h.render(); },
+                           function () { guides = []; guidesLoading = false; });
+    }
+    function guideHtml(g, open) {
+      var b = g.body || {}, met = (gs.fq || {})[g.slug] || [];
+      var elig = (b.eligibility || []).map(function (x, i) {
+        var on = met.indexOf(i) >= 0;
+        return '<li><label class="check"><input type="checkbox" data-g="fq" data-s="' + esc(g.slug) + '" value="' + i + '"' + (on ? " checked" : "") + ' data-fk="g-fq-' + esc(g.slug) + "-" + i + '"><span>' + esc(x) + "</span></label></li>";
+      }).join("");
+      var n = (b.eligibility || []).length, m = met.length;
+      return '<details class="card proj fguide"' + (open ? " open" : "") + '><summary><span class="sname">' + esc(g.title) + '</span><span class="pill quiet">' + esc(g.kind) + "</span>" + icon("arrow-right", "chev") + "</summary>" +
+        '<div class="body"><p class="lead" style="font-size:17px">' + esc(b.summary || "") + "</p>" +
+        '<div class="fg-grid"><div class="stack-sm"><div class="row between"><h3>Do you qualify?</h3><span class="stamp" id="fq-' + esc(g.slug) + '">' + m + " of " + n + " met</span></div>" +
+          '<p class="hint">Tick each statement that is true for your company.</p><ul class="checks">' + elig + "</ul></div>" +
+          '<div class="stack-sm"><h3>What to prepare</h3><ul class="plain">' + (b.documents || []).map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul></div></div>" +
+        '<h3>How to apply, step by step</h3><ol class="steps fg-steps">' + (b.steps || []).map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ol>" +
+        '<div class="trio"><div><b>Timing</b><p class="small muted">' + esc(b.timing || "") + "</p></div><div><b>With SR&amp;ED</b><p class=\"small muted\">" + esc(b.sred || "") + '</p></div><div><b>Who to contact</b><p class="small muted">' + esc(b.contact || "") + "</p></div></div>" +
+        '<div class="row">' + (b.link ? '<a class="btn alt small" href="' + esc(b.link) + '" target="_blank" rel="noopener">Official program page</a>' : "") + '<a class="btn alt small" href="#funding">Log funding received</a></div>' +
+        (g.checked_on ? '<p class="hint">Checked against the official page on ' + h.longDate(String(g.checked_on).slice(0, 10)) + ". Programs change: confirm before you apply.</p>" : "") +
+        "</div></details>";
+    }
+    function lockedCard(t) {
+      return '<li class="lock-i">' + icon("lock-simple") + "<div><b>" + esc(t) + '</b><span class="small muted">Eligibility checklist, documents to prepare, and how to apply</span></div></li>';
+    }
+    function guidesSection() {
+      var list;
+      if (h.mode !== "live") {
+        list = guideHtml(SAMPLE_GUIDE, true) + '<ul class="locks">' + GUIDE_TITLES.slice(1).map(lockedCard).join("") + "</ul>" +
+          '<p class="hint">This demo opens one guide as a sample. Members on Growth and Scale get every guide.</p>';
+      } else if (!guides) { loadGuides(); list = '<p class="hint" role="status">Loading your funding guides…</p>'; }
+      else if (!guides.length) list = '<p class="hint">The funding guides are being set up. Check back soon.</p>';
+      else list = guides.map(function (g, i) { return guideHtml(g, i === 0); }).join("");
+      return '<div class="stack-sm"><div class="row between"><h2>Eligibility and how to apply.</h2><span class="pill good">Included in your plan</span></div>' +
+        '<p class="lead">For each program: a checklist to see if you qualify, the documents to gather, and every step to apply.</p></div>' + list;
+    }
+    function lockedPrograms() {
+      return '<section class="stack" aria-labelledby="h-main">' +
+        head("Other funding", '<span class="soft">Grants and credits beyond SR&amp;ED.</span> On Growth and Scale.',
+          "Find out which programs your company qualifies for, what to prepare, and how to apply, step by step. This is part of the Growth and Scale plans.") +
+        '<div class="card lock-card stack-sm"><div class="row between"><h2>What you get</h2>' + icon("lock-simple", "lock-big") + "</div>" +
+          '<ul class="ticks">' + ["Eligibility checklists for each program", "Documents to prepare, program by program", "Step-by-step application guides with contacts", "Deadline alerts, such as the Clean Technology ITC retroactive date", "How each grant affects your SR&ED claim"].map(function (x) { return "<li>" + icon("check-circle") + "<span>" + x + "</span></li>"; }).join("") + "</ul>" +
+          '<ul class="locks">' + GUIDE_TITLES.map(lockedCard).join("") + "</ul>" +
+          '<div class="row"><a class="btn" href="#plans">See Growth and Scale</a></div></div>' +
+        "</section>";
+    }
+
     /* ---------- other funding ---------- */
     function vPrograms() {
+      if (!fundingAccess()) return lockedPrograms();
       var left = days(h.today, CLEAN_TECH_DUE);
       var types = [
         ["Tax credits or rebates", "Lower corporate or employer taxes, or come back as a refund. SR&ED is one."],
@@ -331,6 +392,7 @@
         '<ul class="types">' + types + "</ul>" +
         (left >= 0 && left <= 120 ? '<div class="flash">Clean Technology ITC: the key retroactive filing date is ' + h.longDate(CLEAN_TECH_DUE) + ", " + left + " days from today. If you bought electric or hydrogen equipment since March 28, 2023, ask your advisor this week.</div>" : "") +
         '<div class="progs">' + cards + "</div>" +
+        guidesSection() +
         '<div class="card stack-sm"><h2>Stacking, in plain words.</h2><ul class="plain">' +
           "<li>One project can get grant support and include SR&amp;ED work.</li>" +
           "<li>Government assistance, such as an IRAP or Mitacs contribution, comes off the costs you claim for SR&amp;ED.</li>" +
@@ -397,16 +459,16 @@
     /* ---------- membership ---------- */
     var PLANS = [
       {id: "starter", t: "Starter", m: 79, y: 790, who: "A small team with its first SR&ED project.",
-       f: ["1 company, up to 5 people", "3 active projects", "Evidence locker, 10 GB", "Weekly time and gap alerts", "Eligibility check and SR&ED guide"]},
+       f: ["1 company, up to 5 people", "3 active projects", "Evidence locker, 10 GB", "Weekly time and gap alerts", "Eligibility check and SR&ED guide"], no: ["Other funding programs and application guides"]},
       {id: "growth", t: "Growth", m: 199, y: 1990, best: true, who: "Companies claiming every year.",
-       f: ["Up to 25 people", "Unlimited projects", "Evidence locker, 100 GB", "Credit estimator and binder export", "1 free advisor seat (view only)", "Email support"]},
+       f: ["Up to 25 people", "Unlimited projects", "Evidence locker, 100 GB", "Other funding: eligibility and how to apply", "Credit estimator and binder export", "1 free advisor seat (view only)", "Email support"]},
       {id: "scale", t: "Scale", m: 449, y: 4490, who: "Larger R&D teams and groups of companies.",
-       f: ["Unlimited people", "Up to 3 related companies", "Evidence locker, 1 TB", "Audit log export", "Onboarding call", "Priority support"]}
+       f: ["Unlimited people", "Up to 3 related companies", "Evidence locker, 1 TB", "Other funding: eligibility and how to apply", "Funding review call each year", "Audit log export", "Priority support"]}
     ];
     var STATUS = {trialing: "free trial", active: "active", past_due: "payment overdue", unpaid: "unpaid", canceled: "cancelled",
                   incomplete: "payment not finished", incomplete_expired: "payment not finished", paused: "paused"};
     function planState() {
-      if (h.mode !== "live") return {plan: "growth", status: "trialing", trialLeft: 14, sample: true};
+      if (h.mode !== "live") return {plan: gs.demoPlan || "growth", status: gs.demoPlan && gs.demoPlan !== "growth" ? "active" : "trialing", trialLeft: 14, sample: true};
       var b = h.billing;
       if (!b) return {plan: null, status: null};
       var left = b.trial_ends_at ? Math.max(0, Math.ceil((Date.parse(b.trial_ends_at) - Date.now()) / 86400000)) : null;
@@ -434,7 +496,8 @@
           '<div class="row between"><h2>' + p.t + "</h2>" + (cur ? '<span class="pill good">Your plan</span>' : p.best ? '<span class="pill quiet">Most chosen</span>' : "") + "</div>" +
           '<p class="small muted">' + esc(p.who) + "</p>" +
           '<p class="price"><b class="num">' + money.format(yr ? Math.round(p.y / 12) : p.m) + '</b><span>/ month' + (yr ? ", billed " + money.format(p.y) + " a year" : ", billed monthly") + "</span></p>" +
-          '<ul class="ticks">' + p.f.map(function (x) { return "<li>" + icon("check-circle") + "<span>" + esc(x) + "</span></li>"; }).join("") + "</ul>" +
+          '<ul class="ticks">' + p.f.map(function (x) { return "<li>" + icon("check-circle") + "<span>" + esc(x) + "</span></li>"; }).join("") +
+            (p.no || []).map(function (x) { return '<li class="no">' + icon("lock-simple") + "<span>" + esc(x) + "</span></li>"; }).join("") + "</ul>" +
           (mgr ? btn : "") + "</article>";
       }).join("");
       var nowT, nowSub;
@@ -452,6 +515,9 @@
         head("Membership", '<span class="soft">One price a year.</span> Less than a day of consulting.',
           "Every plan includes the full binder, locked evidence and the eligibility tools. Prices are in Canadian dollars, plus tax. Pay yearly and get two months free.") +
         paidFlash() +
+        (live ? "" : '<div class="card row between demo-prev"><div><p class="eyebrow">Demo only</p><p class="small muted">See the portal the way each plan sees it. Try Starter, then open Other funding.</p></div>' +
+          '<div class="seg" role="group" aria-label="Preview as plan">' + PLANS.map(function (p) { var on = (gs.demoPlan || "growth") === p.id;
+            return '<button type="button" class="seg-b' + (on ? " on" : "") + '" aria-pressed="' + on + '" data-g="demoplan" data-v="' + p.id + '" data-fk="g-demo-' + p.id + '">' + p.t + "</button>"; }).join("") + "</div></div>") +
         (live && !mgr ? '<p class="badge">Only a company admin can change the plan.</p>' : "") +
         '<div class="card plan-now row between"><div><p class="eyebrow">Current plan</p><p class="plan-now-t">' + nowT + '</p><p class="small muted">' + nowSub + "</p>" + (manage ? '<div class="row" style="margin-top:10px">' + manage + "</div>" : "") + "</div>" +
           '<div class="seg" role="group" aria-label="Billing period"><button type="button" class="seg-b' + (yr ? "" : " on") + '" aria-pressed="' + !yr + '" data-g="bill" data-v="month" data-fk="g-bill-m">Monthly</button><button type="button" class="seg-b' + (yr ? " on" : "") + '" aria-pressed="' + yr + '" data-g="bill" data-v="year" data-fk="g-bill-y">Yearly, 2 months free</button></div></div>' +
@@ -483,6 +549,7 @@
       if (g === "ohm") { gs.est = Object.assign(gs.est || estDefaults(), {overheadMode: v}); save(); h.render(); return; }
       if (g === "est-reset") { gs.est = null; save(); h.render(); return; }
       if (g === "bill") { gs.bill = v; save(); h.render(); return; }
+      if (g === "demoplan") { gs.demoPlan = v; save(); h.render(); return; }
       if (g === "choose") {
         if (h.mode !== "live") { h.toast("This is the demo, so nothing is charged. Members go to Stripe’s secure checkout here."); return; }
         var url = b.getAttribute("data-url");
@@ -505,6 +572,15 @@
     function onField(t) {
       if (!t.getAttribute || !t.getAttribute("data-g")) return;
       var g = t.getAttribute("data-g");
+      if (g === "fq") {
+        gs.fq = gs.fq || {}; var sl = t.getAttribute("data-s"), arr = gs.fq[sl] || (gs.fq[sl] = []), ix = Number(t.value), at = arr.indexOf(ix);
+        if (t.checked && at < 0) arr.push(ix);
+        if (!t.checked && at >= 0) arr.splice(at, 1);
+        save();
+        var tot = t.closest("ul").querySelectorAll("input").length, st = document.getElementById("fq-" + sl);
+        if (st) st.textContent = arr.length + " of " + tot + " met";
+        return;
+      }
       if (g === "flag") {
         var f = gs.elig.flags || (gs.elig.flags = []), i = f.indexOf(t.value);
         if (t.checked && i < 0) f.push(t.value);
@@ -530,7 +606,8 @@
       icons: {eligibility: "seal-check", claimable: "calculator", programs: "hand-coins", learn: "graduation-cap", plans: "credit-card"},
       groups: {eligibility: "Plan and learn", plans: "Account"},
       views: {eligibility: vEligibility, claimable: vClaimable, programs: vPrograms, learn: vLearn, plans: vPlans},
-      overviewCard: overviewCard
+      overviewCard: overviewCard,
+      locked: function (r) { return r === "programs" && !fundingAccess(); }
     };
   };
 })();
