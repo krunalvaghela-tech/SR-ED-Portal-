@@ -37,7 +37,19 @@
     return p ? '<svg class="ico' + (cls ? " " + cls : "") + '" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">' + p + "</svg>" : "";
   }
   function words(s) { var t = String(s || "").trim(); return t ? t.split(/\s+/).length : 0; }
-  function claimDue() { return (Number(YEAR) + 2) + "-06-30"; }   // 18 months after a Dec 31 year end
+  // CRA deadline rule: if the year end is the last day of a month, a deadline n months
+  // later is the last day of that month; otherwise it is the same day of that month.
+  function lastDayOf(y, m) { return new Date(Date.UTC(y, m + 1, 0)).getUTCDate(); }   // m is 0-based
+  function addMonthsCRA(iso, n) {
+    var y = Number(iso.slice(0, 4)), m = Number(iso.slice(5, 7)) - 1, d = Number(iso.slice(8, 10));
+    var eom = d === lastDayOf(y, m);
+    var t = new Date(Date.UTC(y, m + n, 1)), ty = t.getUTCFullYear(), tm = t.getUTCMonth();
+    var day = eom ? lastDayOf(ty, tm) : Math.min(d, lastDayOf(ty, tm));
+    return ty + "-" + String(tm + 1).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+  }
+  function yearEnd() { return (state && state.yearEnd) || YEAR + "-12-31"; }
+  function yearStart() { return addDays(addMonthsCRA(yearEnd(), -12), 1); }
+  function claimDue() { return addMonthsCRA(yearEnd(), 18); }   // SR&ED reporting deadline: T2 due date + 12 months
   function longDate(iso) { return MONTHS[Number(iso.slice(5, 7)) - 1] + " " + Number(iso.slice(8, 10)) + ", " + iso.slice(0, 4); }
   var KEYWORDS = {
     p1: ["mesh","slot","radio","delivery","packet","duty","network"],
@@ -111,6 +123,12 @@
         {id:"f5", label:"Cold-chamber test lab: invoices (4)", status:"ok", note:""},
         {id:"f6", label:"General ledger report, Jan to Oct 2026", status:"ok", note:""}
       ],
+      yearEnd: "2026-12-31", sbd: true,
+      checklist: {tests: "yes", designs: "yes", notes: "no", people: "no", payroll: "yes", specified: "no",
+                  mat_inv: "yes", mat_use: "no", overhead: "yes", ct_signed: "no", ct_inv: "yes", ct_reports: "no",
+                  tp_agree: "na", tp_reports: "na", cap_agree: "na", cap_use: "na", cap_new: "na",
+                  fund_logged: "yes", fund_agree: "no", prior: "yes", unpaid: "no"},
+      filed: {"2025-12-31": "yes"},
       funding: [
         {id:"g1", program:"YESP wage subsidy", amount:14000, period:"Apr 2026 to Mar 2027"},
         {id:"g2", program:"NRC IRAP contribution", amount:30000, period:"Jan to Dec 2026"}
@@ -345,7 +363,7 @@
       '<div class="ready-body"><h2>Binder readiness</h2><p class="hint">' + r.ok + " of " + r.all + ' checks pass.</p><ul class="areas">' + rows + "</ul></div></div>";
   }
   function timelineHtml() {
-    var start = YEAR + "-01-01", end = YEAR + "-12-31", due = claimDue();
+    var start = yearStart(), end = yearEnd(), due = claimDue();
     var span = days(start, due), pos = function (d) { return Math.max(0, Math.min(100, days(start, d) / span * 100)); };
     var left = days(TODAY, due);
     var stop = function (d, label, cls) {
@@ -577,7 +595,7 @@
       '<div class="stack-sm"><p class="eyebrow">Export</p><h1 id="h-main"><span class="soft">The ' + YEAR + ' binder.</span> ' + (g.length ? plural(g.length, "gap", "gaps") + " still open." : "Ready to hand over.") + "</h1>" +
       '<p class="lead">One folder per tax year, in the order a reviewer reads it. Open gaps go on the cover, where everyone can see them.</p></div>' +
       flashHtml() +
-      '<div class="binder"><div class="spine"><h2>' + YEAR + ' SR&amp;ED Binder</h2><span class="mono small">' + esc(ORG_NAME) + ' &middot; Jan 1 to Dec 31, ' + YEAR + '</span></div><ol>' + items + "</ol></div>" +
+      '<div class="binder"><div class="spine"><h2>' + YEAR + ' SR&amp;ED Binder</h2><span class="mono small">' + esc(ORG_NAME) + ' &middot; ' + longDate(yearStart()) + " to " + longDate(yearEnd()) + '</span></div><ol>' + items + "</ol></div>" +
       '<div class="row"><button class="btn" type="button" data-act="generate" data-fk="generate">Build sample package</button><button class="btn alt" type="button" data-act="copy" data-fk="copy">Copy index text</button>' + copyMsg + "</div>" +
       gen +
       '<pre class="index" aria-label="Binder index text">' + esc(indexText()) + "</pre>" +
@@ -600,6 +618,21 @@
     get canManage() { return canManage(); },
     stripe: (window.SRED_CONFIG || {}).stripe || {}
   }) : null;
+  var CLAIM = window.SRED_CLAIM ? window.SRED_CLAIM({
+    esc: esc, icon: icon, money: money, longDate: longDate, plural: plural, days: days, addDays: addDays, addMonths: addMonthsCRA,
+    get today() { return TODAY; }, get state() { return state; }, get mode() { return MODE; },
+    get canWrite() { return canWrite(); }, get canManage() { return canManage(); }, get orgName() { return ORG_NAME; },
+    yearEnd: yearEnd, yearStart: yearStart, claimDue: claimDue, completion: completion, fields: FIELDS, lastEvidence: lastEvidence,
+    setYearEnd: function (iso, sbd) { state.yearEnd = iso; state.sbd = sbd; YEAR = iso.slice(0, 4); persist.yearEnd(iso, sbd); render(); },
+    setCheck: function (item, v, ye) { if (item === "filed") state.filed[ye] = v; else state.checklist[item] = v; persist.check(item, v, ye); },
+    render: function () { render(); }, toast: function (t, b) { toast(t, b); }
+  }) : null;
+  if (CLAIM) {
+    var at = NAV.findIndex(function (n) { return n[0] === "export"; });
+    CLAIM.nav.forEach(function (n, i) { NAV.splice(at + i, 0, n); ROUTES.push(n[0]); });
+    Object.keys(CLAIM.icons).forEach(function (k) { NAV_ICON[k] = CLAIM.icons[k]; });
+    Object.keys(CLAIM.views).forEach(function (k) { VIEWS[k] = CLAIM.views[k]; });
+  }
   if (GUIDE) {
     GUIDE.nav.forEach(function (n) { NAV.push(n); ROUTES.push(n[0]); });
     Object.keys(GUIDE.icons).forEach(function (k) { NAV_ICON[k] = GUIDE.icons[k]; });
@@ -626,7 +659,7 @@
     if (co) co.textContent = ORG_NAME.replace(" (sample)", "");
     var chips = document.getElementById("topChips");
     if (chips) chips.innerHTML = '<span class="chip">' + icon("calendar-blank") + "Tax year " + YEAR + "</span>" +
-      '<span class="chip strong" title="T661 filing deadline: 18 months after a December 31 year end">' + icon("clock") + "Claim due " + longDate(claimDue()) + "</span>";
+      '<span class="chip strong" title="SR&amp;ED reporting deadline: 18 months after the year end">' + icon("clock") + "Claim due " + longDate(claimDue()) + "</span>";
     var so = document.getElementById("sideOrg");
     if (so && MODE === "demo") so.innerHTML = '<p class="org-name">' + esc(ORG_NAME) + '</p><p class="org-sub">Tax year ' + YEAR + "</p>";
   }
@@ -1082,6 +1115,15 @@
       sb.from("funding").insert({id: f.id, org_id: orgId, program: f.program, amount: f.amount, period: f.period})
         .then(function (r) { check(r, "the funding entry"); });
     },
+    yearEnd: function (iso, sbd) {
+      if (MODE !== "live" || !canManage()) return;
+      later("ye", function () { sb.from("organizations").update({fiscal_year_end: iso, ccpc_sbd: sbd}).eq("id", orgId).then(function (r) { check(r, "the year end"); }); });
+    },
+    check: function (item, status, ye) {
+      if (MODE !== "live" || !canWrite()) return;
+      sb.from("claim_checklist").upsert({org_id: orgId, year_end: ye || yearEnd(), item: item, status: status, updated_by: me && me.id}, {onConflict: "org_id,year_end,item"})
+        .then(function (r) { check(r, "the checklist"); });
+    },
     threshold: function (n) {
       if (MODE !== "live" || !canManage()) return;
       later("thr", function () { sb.from("organizations").update({gap_threshold_days: n}).eq("id", orgId).then(function (r) { check(r, "the alert level"); }); });
@@ -1190,8 +1232,20 @@
       hours: {}, history: {}, weekSubmitted: false,
       records: res[5].data.map(function (r) { return {id: r.id, label: r.label, status: r.status, note: r.note}; }),
       funding: res[6].data.map(function (f) { return {id: f.id, program: f.program, amount: Number(f.amount), period: f.period}; }),
-      flash: null, generated: false, copied: ""
+      flash: null, generated: false, copied: "",
+      yearEnd: null, sbd: true, checklist: {}, filed: {}
     };
+    // Year end and checklist are optional: they exist once supabase/deadlines.sql has run.
+    try {
+      var ye = await sb.from("organizations").select("fiscal_year_end, ccpc_sbd").eq("id", orgId).maybeSingle();
+      if (!ye.error && ye.data) { fresh.yearEnd = ye.data.fiscal_year_end; fresh.sbd = ye.data.ccpc_sbd !== false; }
+      var cl = await sb.from("claim_checklist").select("year_end, item, status").eq("org_id", orgId);
+      if (!cl.error) (cl.data || []).forEach(function (r) {
+        if (r.item === "filed") fresh.filed[r.year_end] = r.status;
+        else if (!fresh.yearEnd || r.year_end === fresh.yearEnd) fresh.checklist[r.item] = r.status;
+      });
+    } catch (e) {}
+    if (fresh.yearEnd) YEAR = fresh.yearEnd.slice(0, 4);
     entryIds = {};
     var weeks = pastWeeks(8);
     people.forEach(function (p) {
