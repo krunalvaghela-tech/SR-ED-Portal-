@@ -197,14 +197,14 @@
       var logged = personTotal(p.id);
       var diff = logged - p.payroll;
       if (Math.abs(diff) > 1) {
-        out.push({id:"hrs-" + p.id, sev:"high", go:"time", label:"Fix timesheet",
+        out.push({id:"hrs-" + p.id, sev:"high", go:"time", label:"Fix the timesheet",
           title: p.name + ": timesheet does not match payroll",
           detail: "This week's timesheet totals " + fmt(logged) + " h. Payroll paid " + fmt(p.payroll) + " h."});
       }
     });
     state.records.forEach(function (r) {
       if (r.status === "missing") {
-        out.push({id:"rec-" + r.id, sev:"high", go:"funding", label:"Add record",
+        out.push({id:"rec-" + r.id, sev:"high", go:"funding", label:"Add the record",
           title: "Missing: " + r.label, detail: r.note || "This record is not on file."});
       }
     });
@@ -212,13 +212,13 @@
       var last = lastEvidence(pr.id);
       var d = last ? days(last, TODAY) : null;
       if (pr.status === "Active" && (d === null || d > state.threshold)) {
-        out.push({id:"stale-" + pr.id, sev:"med", go:"evidence", label:"Add a record", open: pr.id,
+        out.push({id:"stale-" + pr.id, sev:"med", go:"evidence", label:"File a record", open: pr.id,
           title: pr.name + ": no recent records",
           detail: d === null ? "No records filed for this project yet." :
-            "Last record " + last + ", " + d + " days ago. Your alert level is " + state.threshold + " days."});
+            "Last record " + longDate(last) + ", " + d + " days ago. Your alert level is " + state.threshold + " days."});
       }
       if (!String(pr.results || "").trim()) {
-        out.push({id:"res-" + pr.id, sev:"med", go:"project/" + pr.id, label:"Open project",
+        out.push({id:"res-" + pr.id, sev:"med", go:"project/" + pr.id, label:"Open the project",
           title: pr.name + ": results not written up",
           detail: "The project sheet has no results yet. Add dates and numbers while they are fresh."});
       }
@@ -278,7 +278,7 @@
     var kpis = '<div class="kpis">' +
       kpi("claimable", "Estimated credit", est == null ? "–" : money.format(est), "Federal plus provincial, from your costs") +
       kpi("strength", "Claim strength", strength == null ? "–" : strength + "%", strength >= 85 ? "Strong. Ready for your advisor" : strength >= 65 ? "Fair. A few items to collect" : "At risk. Collect the missing proof", strength == null ? "" : meter(strength)) +
-      kpi("deadlines", "SR&amp;ED deadline", left >= 0 ? left + "<small> days</small>" : "Passed", longDate(due)) +
+      kpi("deadlines", "Claim due", left >= 0 ? left + "<small> days</small>" : "Passed", longDate(due)) +
       kpi("gaps", "Open gaps", String(g.length), high + " to fix first, " + (g.length - high) + " to fix soon") +
       "</div>";
 
@@ -310,7 +310,7 @@
       '<div class="hm-legend"><span>Less</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><span>More</span></div>';
 
     var recent = state.evidence.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 6).map(function (e) {
-      return '<li><span class="ra-ico">' + icon("files") + '</span><div class="ra-b"><b>' + esc(e.title) + '</b><span class="small muted">' + esc(project(e.project).name) + " · " + esc(e.type || "") + '</span></div><span class="stamp">' + e.date + "</span></li>";
+      return '<li><span class="ra-ico">' + icon("files") + '</span><div class="ra-b"><b>' + esc(e.title) + '</b><span class="small muted">' + esc(project(e.project).name) + " · " + esc(e.type || "") + '</span></div><span class="stamp">' + longDate(e.date) + "</span></li>";
     }).join("");
 
     var actions = g.slice(0, 4).map(gapItem).join("");
@@ -391,9 +391,9 @@
       }).join("");
       return '<tr data-cursor="Open"><td><a class="row-link" href="#project/' + pr.id + '">' + icon("flask") + esc(pr.name) + "</a></td>" +
         '<td><span class="ldots" aria-label="' + lines + ' of 3 T661 lines written">' + dots + "</span> " + lines + "/3</td>" +
-        '<td class="r num">' + n + '</td><td class="r num">' + fmt(hrs) + "</td><td>" + (last ? '<span class="stamp">' + last + "</span>" : '<span class="muted">None yet</span>') + "</td></tr>";
+        '<td class="r num">' + n + '</td><td class="r num">' + fmt(hrs) + "</td><td>" + (last ? '<span class="stamp">' + longDate(last) + "</span>" : '<span class="muted">None yet</span>') + "</td></tr>";
     }).join("");
-    return '<div class="stack-sm rv"><div class="row between"><h2>Projects at a glance.</h2><a href="#projects">Open projects</a></div>' +
+    return '<div class="stack-sm rv"><div class="row between"><h2>Projects at a glance</h2><a href="#projects">Open projects</a></div>' +
       '<div class="table-wrap"><table class="glance"><thead><tr><th>Project</th><th>T661 lines</th><th class="r">Records</th><th class="r">Hours this week</th><th>Last record</th></tr></thead><tbody>' + rows + "</tbody></table></div></div>";
   }
 
@@ -431,11 +431,11 @@
       '<div class="field"><label for="ev-source">Source</label><select id="ev-source" name="source">' + options(SOURCES, "Upload") + "</select></div>" +
       '<div class="field wide"><label for="ev-file">File (optional)</label><input id="ev-file" name="file" type="file"><p class="hint">' + (MODE === "live" ? "Up to 50 MB. Once filed, it can’t be replaced." : "In the demo, only the file name is kept.") + "</p></div>" +
       "</div>" +
-      '<div class="row"><button class="btn" type="submit" data-fk="ev-add">File it <span class="arr" aria-hidden="true">&rarr;</span></button><span class="hint">Dated ' + TODAY + ". The date can’t be changed later.</span></div></form>";
+      '<div class="row"><button class="btn" type="submit" data-fk="ev-add">File it <span class="arr" aria-hidden="true">&rarr;</span></button><span class="hint">Dated ' + longDate(TODAY) + ". The date can’t be changed later.</span></div></form>";
   }
   function evidenceRows(list) {
     return list.map(function (e) {
-      return '<tr><td data-v="' + e.date + '"><span class="stamp">' + e.date + "</span></td>" +
+      return '<tr><td data-v="' + e.date + '"><span class="stamp">' + longDate(e.date) + "</span></td>" +
         "<td>" + esc(e.title) + (e.file ? (MODE === "live" && e.filePath ? '<br><button class="linkbtn" type="button" data-act="download" data-path="' + esc(e.filePath) + '">' + esc(e.file) + "</button>" : '<br><span class="small muted">' + esc(e.file) + "</span>") : "") + "</td>" +
         "<td>" + esc(e.type) + "</td><td>" + esc(project(e.project).name) + "</td>" +
         "<td>" + esc(person(e.person).name) + "</td><td>" + esc(e.source) + "</td>" +
@@ -456,7 +456,7 @@
         '<td><span class="pill ' + (pr.status === "Active" ? "good" : "quiet") + '">' + esc(pr.status || "Active") + "</span></td>" +
         '<td data-v="' + s.lines + '"><span class="ldots" aria-label="' + s.lines + ' of 3 T661 lines written">' + dots + "</span> " + s.lines + "/3</td>" +
         '<td class="r num" data-v="' + s.recs.length + '">' + s.recs.length + '</td><td class="r num" data-v="' + s.hrs + '">' + fmt(s.hrs) + "</td>" +
-        '<td data-v="' + (s.last || "") + '">' + (s.last ? '<span class="stamp">' + s.last + "</span>" : '<span class="muted">None yet</span>') + "</td></tr>";
+        '<td data-v="' + (s.last || "") + '">' + (s.last ? '<span class="stamp">' + longDate(s.last) + "</span>" : '<span class="muted">None yet</span>') + "</td></tr>";
     }).join("");
     var form = '<form class="form" id="f-project" novalidate>' +
       '<div class="field"><label for="np-name">Project name</label><input id="np-name" name="name" placeholder="For example: Sensor enclosure heat test" data-fk="np-name"><p class="hint">Use a plain description of the technical goal. You can change it later.</p></div>' +
@@ -492,10 +492,10 @@
       var next = [];
       FIELDS.forEach(function (f) { if (f.limit && !String(pr[f.key] || "").trim()) next.push(["Write " + f.tag, "t661"]); });
       if (s.age === null) next.push(["File the first record for this project", "evidence"]);
-      else if (pr.status === "Active" && s.age > state.threshold) next.push(["No record for " + s.age + " days. File what happened since " + s.last, "evidence"]);
+      else if (pr.status === "Active" && s.age > state.threshold) next.push(["No record for " + s.age + " days. File what happened since " + longDate(s.last), "evidence"]);
       if (!s.hrs) next.push(["No hours logged to this project this week", "time"]);
       var recent = s.recs.slice().sort(function (x, y) { return x.date < y.date ? 1 : -1; }).slice(0, 5).map(function (e) {
-        return '<li><span class="ra-ico">' + icon("files") + '</span><div class="ra-b"><b>' + esc(e.title) + '</b><span class="small muted">' + esc(e.type) + " · " + esc(person(e.person).name) + '</span></div><span class="stamp">' + e.date + "</span></li>";
+        return '<li><span class="ra-ico">' + icon("files") + '</span><div class="ra-b"><b>' + esc(e.title) + '</b><span class="small muted">' + esc(e.type) + " · " + esc(person(e.person).name) + '</span></div><span class="stamp">' + longDate(e.date) + "</span></li>";
       }).join("");
       body = '<div class="pstats">' +
           stat("T661 lines", s.lines + "/3", a + " of 4 prompts answered") +
@@ -658,18 +658,18 @@
       var hist = state.history[p.id] || [];
       var done = hist.reduce(function (s, v) { return s + v; }, 0);
       strip += "<span>" + esc(p.name) + "</span>" + hist.map(function (v, i) {
-        return '<span class="sq' + (v ? "" : " miss") + '" role="img" aria-label="' + esc(p.name) + ", week of " + weeks[i] + ": " + (v ? "completed" : "missed") + '"></span>';
+        return '<span class="sq' + (v ? "" : " miss") + '" role="img" aria-label="' + esc(p.name) + ", week of " + longDate(weeks[i]) + ": " + (v ? "completed" : "missed") + '"></span>';
       }).join("") + '<span class="num">' + done + "/8</span>";
     });
 
     return '<section class="stack" aria-labelledby="h-main">' +
-      '<div class="stack-sm"><p class="eyebrow">Weekly time</p><h1 id="h-main"><span class="soft">Week of ' + WEEK_OF + ".</span> <span id=\"wk-total\">" + fmt(rdHours()) + "</span> R&amp;D hours.</h1>" +
+      '<div class="stack-sm"><p class="eyebrow">Weekly time</p><h1 id="h-main"><span class="soft">Week of ' + longDate(WEEK_OF) + ".</span> <span id=\"wk-total\">" + fmt(rdHours()) + "</span> R&amp;D hours.</h1>" +
       '<p class="lead">Every Monday, each person takes about two minutes to split last week by project. We check the totals against payroll, so the hours and the pay always agree.</p></div>' +
       flashHtml() +
-      (state.weekSubmitted ? '<p class="flash">Week of ' + WEEK_OF + " submitted. Edits now show as changes on the record.</p>" : "") +
+      (state.weekSubmitted ? '<p class="flash">Week of ' + longDate(WEEK_OF) + " submitted. Edits now show as changes on the record.</p>" : "") +
       '<div class="table-wrap time"><table><thead><tr><th>Person</th>' + head + '<th class="r">Non-R&amp;D</th><th class="r">Total h</th><th class="r">Payroll h</th><th>Check</th></tr></thead><tbody>' + rows + "</tbody></table></div>" +
       '<div class="row"><button class="btn" type="button" data-act="submit-week" data-fk="submit-week">' + (state.weekSubmitted ? "Submit changes" : "Submit week") + "</button></div>" +
-      '<div class="card stack-sm"><div class="row between"><h2>The last 8 weeks.</h2><span class="pill ' + (c.pct >= 80 ? "good" : "warn") + '">' + c.pct + "% done, target 80%</span></div>" +
+      '<div class="card stack-sm"><div class="row between"><h2>The last 8 weeks</h2><span class="pill ' + (c.pct >= 80 ? "good" : "warn") + '">' + c.pct + "% done, target 80%</span></div>" +
       '<div class="legend"><span><span class="sq"></span>Completed</span><span><span class="sq miss"></span>Missed</span></div>' +
       '<div style="overflow-x:auto"><div class="strip">' + strip + "</div></div></div>" +
       "</section>";
@@ -752,7 +752,7 @@
     }).join("");
     var gen = "";
     if (state.generated) {
-      gen = '<div class="card stack-sm" role="status"><h2>Sample package built</h2>' +
+      gen = '<div class="card stack-sm" role="status"><h2>Sample binder built</h2>' +
         '<p>1 cover, ' + plural(state.projects.length, "project sheet", "project sheets") + ", " + c.done + " weekly entries, " + plural(state.evidence.length, "record", "records") + " and " + plural(rc.ok, "financial record", "financial records") + ". " +
         (g.length ? plural(g.length, "open gap is", "open gaps are") + " listed on the cover." : "No open gaps.") + "</p>" +
         '<p class="hint">Downloads are off for now. Soon this builds one indexed folder you can hand to your advisor or to CRA.</p></div>';
@@ -764,7 +764,7 @@
       '<p class="lead">One folder per tax year, in the order a reviewer reads it. Open gaps go on the cover, where everyone can see them.</p></div>' +
       flashHtml() +
       '<div class="binder"><div class="spine"><h2>' + YEAR + ' SR&amp;ED Binder</h2><span class="mono small">' + esc(ORG_NAME) + ' &middot; ' + longDate(yearStart()) + " to " + longDate(yearEnd()) + '</span></div><ol>' + items + "</ol></div>" +
-      '<div class="row"><button class="btn" type="button" data-act="generate" data-fk="generate">Build sample package</button><button class="btn alt" type="button" data-act="copy" data-fk="copy">Copy index text</button>' + copyMsg + "</div>" +
+      '<div class="row"><button class="btn" type="button" data-act="generate" data-fk="generate">Build the binder</button><button class="btn alt" type="button" data-act="copy" data-fk="copy">Copy index text</button>' + copyMsg + "</div>" +
       gen +
       '<pre class="index" aria-label="Binder index text">' + esc(indexText()) + "</pre>" +
       '<p class="hint">The portal organizes your records. Your accountant or SR&amp;ED advisor decides what to claim.</p>' +
@@ -803,6 +803,11 @@
     Object.keys(CLAIM.icons).forEach(function (k) { NAV_ICON[k] = CLAIM.icons[k]; });
     Object.keys(CLAIM.views).forEach(function (k) { VIEWS[k] = CLAIM.views[k]; });
   }
+  var HELP = window.SRED_HELP ? window.SRED_HELP({
+    esc: esc, icon: icon, get route() { return route; },
+    paid: function () { return GUIDE && GUIDE.paid ? GUIDE.paid() : true; },
+    training: (window.SRED_CONFIG || {}).training || {}
+  }) : null;
   if (GUIDE) {
     GUIDE.nav.forEach(function (n) { NAV.push(n); ROUTES.push(n[0]); });
     Object.keys(GUIDE.icons).forEach(function (k) { NAV_ICON[k] = GUIDE.icons[k]; });
@@ -1038,7 +1043,7 @@
       state.evidence.push(rec);
       persist.evidence(rec, fileObj);
       state.filters = {project: "all", type: "all"};
-      state.flash = {text: "Filed \"" + title + "\" under " + project(form.elements.project.value).name + ", stamped " + TODAY + "."};
+      state.flash = {text: "Filed \"" + title + "\" under " + project(form.elements.project.value).name + ", dated " + longDate(TODAY) + "."};
       render();
       return;
     }
@@ -1083,7 +1088,12 @@
   function sidePref() { try { return localStorage.getItem("sred-side"); } catch (e) { return null; } }
   function setSide(open, remember) {
     appShell.setAttribute("data-side", open ? "open" : "closed");
-    var st = document.getElementById("sideToggle"); if (st) st.setAttribute("aria-expanded", String(open));
+    var st = document.getElementById("sideToggle");
+    if (st) {
+      st.setAttribute("aria-expanded", String(open));
+      st.title = (open ? "Hide sidebar" : "Show sidebar") + " (Ctrl or Cmd + B)";
+      var sr = st.querySelector(".sr"); if (sr) sr.textContent = open ? "Hide sidebar" : "Show sidebar";
+    }
     var os = document.getElementById("openSide"); if (os) os.setAttribute("aria-expanded", String(open));
     scrim.hidden = !(open && mqNarrow.matches);
     if (remember && !mqNarrow.matches) { try { localStorage.setItem("sred-side", open ? "open" : "closed"); } catch (e) {} }
@@ -1566,7 +1576,7 @@
       '<div class="grid2">' +
         '<div class="card stack-sm"><h2>Members</h2><ul class="records">' + mem + "</ul>" +
           (inv ? '<h3>Waiting to sign in</h3><ul class="records">' + inv + "</ul>" : "") + "</div>" +
-        '<form class="card form" id="f-invite" novalidate><h2>Invite someone.</h2>' +
+        '<form class="card form" id="f-invite" novalidate><h2>Invite someone</h2>' +
           '<div class="field"><label for="iv-email">Email</label><input id="iv-email" name="email" type="email" autocomplete="off" placeholder="name@company.ca"></div>' +
           '<div class="field"><label for="iv-role">Role</label><select id="iv-role" name="role">' + roleOptions("staff") + "</select>" +
           '<p class="hint">Staff file records and hours. Company admins also run the team. Advisors can look but not change.</p></div>' +
@@ -1675,7 +1685,7 @@
     state.projects.forEach(function (p) { out.push({kind: "Project", label: p.name, icon: "flask", go: "project/" + p.id}); });
     [["File a record", "evidence", "plus"], ["Log this week’s hours", "time", "clock"], ["Log a grant or subsidy", "funding", "receipt"],
      ["Check a project’s eligibility", "eligibility", "seal-check"], ["Estimate your credit", "claimable", "calculator"],
-     ["Change the year end", "deadlines", "calendar-blank"], ["Copy the request list", "strength", "gauge"], ["Export the binder", "export", "books"]
+     ["Change the year end", "deadlines", "calendar-blank"], ["Help and training", "", "question"], ["Copy the request list", "strength", "gauge"], ["Export the binder", "export", "books"]
     ].forEach(function (a) { out.push({kind: "Action", label: a[0], icon: a[2], go: a[1]}); });
     state.evidence.slice(-40).reverse().forEach(function (e) { out.push({kind: "Record", label: e.title, sub: e.date, icon: "files", go: "evidence"}); });
     return out;
@@ -1703,6 +1713,7 @@
   function cmdGo(it) {
     if (!it) return;
     cmdClose();
+    if (it.label === "Help and training" && HELP) { HELP.open(); return; }
     if (it.open) { state.open = {}; state.open[it.open] = true; }
     if (location.hash === "#" + it.go) render(true); else location.hash = it.go;
     if (it.open) setTimeout(function () {
@@ -1731,7 +1742,7 @@
     var out = gaps().slice(0, 5).map(function (x) { return {t: x.title, d: x.detail, go: x.go, open: x.open, hi: x.sev === "high"}; });
     var due = claimDue(), t2 = addMonthsCRA(yearEnd(), 6), n1 = days(TODAY, t2), n2 = days(TODAY, due);
     if (n1 >= 0 && n1 <= 120) out.unshift({t: "T2 return due in " + plural(n1, "day", "days"), d: "File the SR&ED claim with it on " + longDate(t2) + ".", go: "deadlines", hi: n1 <= 30});
-    if (n2 >= 0 && n2 <= 120) out.unshift({t: "SR&ED deadline in " + plural(n2, "day", "days"), d: "The final date is " + longDate(due) + ". No extensions.", go: "deadlines", hi: true});
+    if (n2 >= 0 && n2 <= 120) out.unshift({t: "Claim due in " + plural(n2, "day", "days"), d: "The final date is " + longDate(due) + ". No extensions.", go: "deadlines", hi: true});
     return out;
   }
   function updateBell() {

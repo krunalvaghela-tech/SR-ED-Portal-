@@ -17,5 +17,12 @@ window.SRED_CONFIG = {
       scale_month: "",   scale_year: ""
     },
     portal: ""
+  },
+
+  // Training links for Growth and Scale members (a booking page and a webinar
+  // sign-up page, for example Calendly or Zoom). Empty links show "opens soon".
+  training: {
+    booking: "",
+    webinar: ""
   }
 };

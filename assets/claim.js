@@ -88,7 +88,7 @@
           '<p class="hint">If yes, and last year’s taxable income was within the business limit, the tax balance is due 3 months after year end instead of 2.</p></div>' +
         "</div>" + (mgr ? "" : '<p class="hint">Only a company admin can change the year end.</p>') + "</div>" +
         '<div class="tiles dls">' + cards + "</div>" +
-        '<div class="stack-sm"><h2>What to hand in, and when.</h2><p class="lead">Ten steps from three months before year end to the final deadline. Each one links to the page where it gets done.</p></div>' +
+        '<div class="stack-sm"><h2>What to hand in, and when</h2><p class="lead">Ten steps from three months before year end to the final deadline. Each one links to the page where it gets done.</p></div>' +
         '<ol class="plan-tl">' + steps + "</ol>" +
         '<div class="card stack-sm"><h2>Claim years still open</h2><p class="hint">Because the deadline is 18 months, two claim years are often open at the same time. Mark each one filed when it goes in.</p>' +
           '<div class="table-wrap"><table style="min-width:640px"><thead><tr><th>Tax year</th><th>T2 due</th><th>SR&amp;ED due</th><th class="r">Days left</th><th>Status</th><th></th></tr></thead><tbody>' + years.join("") + "</tbody></table></div></div>" +

@@ -318,19 +318,32 @@ html.cursor-label-on .cursor-ring,html.cursor-label-on .cursor-dot{opacity:0}
 .icon-btn .ico{width:22px;height:22px}
 .ico{display:inline-block;vertical-align:middle}
 
-/* collapsed rail */
+/* collapsed rail: labels fade and the column narrows together, so the change reads as one motion */
+.app{transition:grid-template-columns .4s var(--ease)}
+.side>*{flex-shrink:0}
+.side .brand,.brand-name,.tab-label,.user-text,.side-foot .icon-btn{transition:opacity .25s var(--ease)}
+.tab{transition:background .2s,color .2s,padding .4s var(--ease)}
+.nav-group{max-height:40px;overflow:hidden;transition:opacity .25s var(--ease),max-height .4s var(--ease),margin .4s var(--ease)}
+.side-org{max-height:240px;overflow:hidden;transition:opacity .25s var(--ease),max-height .4s var(--ease),padding .4s var(--ease),border-width .4s}
+.side-toggle .ico{transition:transform .4s var(--ease)}
 .app[data-side="closed"] .side{padding-inline:10px}
+.app[data-side="closed"] .side .brand{position:absolute;opacity:0;pointer-events:none}
+.app[data-side="closed"] .side-head{justify-content:center}
 .app[data-side="closed"] .brand-name,
 .app[data-side="closed"] .tab-label,
-.app[data-side="closed"] .nav-group,
-.app[data-side="closed"] .side-org,
 .app[data-side="closed"] .user-text,
-.app[data-side="closed"] .side-foot .icon-btn{display:none}
-.app[data-side="closed"] .side-head{flex-direction:column;gap:10px}
-.app[data-side="closed"] .tab{justify-content:center;padding:10px 0}
-.app[data-side="closed"] .tab .count{position:absolute;top:4px;right:6px;padding:0 6px;font-size:11px}
-.app[data-side="closed"] .user{justify-content:center}
+.app[data-side="closed"] .side-foot .icon-btn{opacity:0;pointer-events:none}
+.app[data-side="closed"] .nav-group{opacity:0;max-height:0;margin:8px 12px}
+.app[data-side="closed"] .side-org{opacity:0;max-height:0;padding-block:0;border-width:0;margin-top:-14px}
+.app[data-side="closed"] .tab{padding-inline:17px}
+.app[data-side="closed"] .tab .count{position:absolute;top:4px;right:4px;padding:0 6px;font-size:11px}
+.app[data-side="closed"] .user{padding-left:10px}
+.app[data-side="closed"] .side-toggle{background:var(--surface);border:1px solid var(--line-strong);box-shadow:0 1px 2px rgba(35,78,75,.08)}
+.app[data-side="closed"] .side-toggle:hover{border-color:var(--ink)}
 .app[data-side="closed"] .side-toggle .ico{transform:scaleX(-1)}
+.app[data-side="closed"] .open-side{display:inline-grid}
+.open-side{border:1px solid var(--line-strong);background:var(--surface)}
+.scrim{animation:fadeIn .3s var(--ease)}
 
 /* top bar */
 .topbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;min-height:64px;padding:10px 32px;background:rgba(243,236,233,.86);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
@@ -720,3 +733,24 @@ body.drawer-open{overflow:hidden}
 .setup-l li.done .setup-n{border:0}.setup-l li.done .setup-n .ico{width:28px;height:28px}
 .setup-l li.done b{text-decoration:line-through;text-decoration-color:var(--line-strong);color:var(--muted)}
 @media (prefers-reduced-motion: reduce){.drawer-panel,.drawer-scrim,.ptab-body{animation:none}}
+
+/* ---------- help and training panel ---------- */
+.tool-icon{border:1px solid var(--line-strong);background:var(--panel);width:44px;height:44px;border-radius:12px}
+.tool-icon:hover{border-color:var(--ink);background:var(--panel)}
+.help-search{max-width:none}
+.help-g{font:600 12px/16px var(--font);letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin:16px 0 4px}
+.help-q{border-bottom:1px solid var(--line)}
+.help-q summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:8px 0;font:600 16px/24px var(--font);cursor:pointer}
+.help-q summary::-webkit-details-marker{display:none}
+.help-car{width:18px;height:18px;flex:none;transition:transform .3s var(--ease)}
+.help-q[open] .help-car{transform:rotate(180deg)}
+.help-q p{margin:0 0 8px;color:var(--muted);font-size:15px;line-height:22px}
+.help-q .link-sm{display:inline-block;margin-bottom:16px}
+.help-train{margin-top:24px;padding:20px;border:2px solid var(--ink);border-radius:16px;background:var(--surface);display:grid;gap:12px}
+.help-train h3{font-size:18px}
+.tr-l{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.tr-i{display:grid;grid-template-columns:22px minmax(0,1fr);gap:12px}
+.tr-i>.ico{width:20px;height:20px;margin-top:2px}
+.tr-i div{display:grid;gap:2px}
+.tr-i.locked b{color:var(--muted)}
+.tr-a{margin-top:8px}

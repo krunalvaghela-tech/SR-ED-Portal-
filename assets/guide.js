@@ -279,7 +279,7 @@
         head("What you can claim", '<span class="soft">Six kinds of cost.</span> Here is what each one is worth.',
           "SR&amp;ED pays back part of what you spend on eligible work: wages, materials, overhead, contracts, research payments and, again, equipment. Each has its own rule.") +
         '<div class="cats">' + cats + "</div>" +
-        '<div class="stack-sm"><h2>Estimate your credit.</h2><p class="lead">Put in this tax year’s SR&amp;ED spending. The numbers update as you type and stay on this device only.</p></div>' +
+        '<div class="stack-sm"><h2>Estimate your credit</h2><p class="lead">Put in this tax year’s SR&amp;ED spending. The numbers update as you type and stay on this device only.</p></div>' +
         '<div class="est">' +
           '<div class="card stack-sm est-in"><div class="fields">' +
             num("est-labour", "SR&amp;ED wages", s.labour, "Only the share of time spent on SR&amp;ED.") +
@@ -357,7 +357,7 @@
       } else if (!guides) { loadGuides(); list = '<p class="hint" role="status">Loading your funding guides…</p>'; }
       else if (!guides.length) list = '<p class="hint">The funding guides are being set up. Check back soon.</p>';
       else list = guides.map(function (g, i) { return guideHtml(g, i === 0); }).join("");
-      return '<div class="stack-sm"><div class="row between"><h2>Eligibility and how to apply.</h2><span class="pill good">Included in your plan</span></div>' +
+      return '<div class="stack-sm"><div class="row between"><h2>Eligibility and how to apply</h2><span class="pill good">Included in your plan</span></div>' +
         '<p class="lead">For each program: a checklist to see if you qualify, the documents to gather, and every step to apply.</p></div>' + list;
     }
     function lockedPrograms() {
@@ -393,7 +393,7 @@
         (left >= 0 && left <= 120 ? '<div class="flash">Clean Technology ITC: the key retroactive filing date is ' + h.longDate(CLEAN_TECH_DUE) + ", " + left + " days from today. If you bought electric or hydrogen equipment since March 28, 2023, ask your advisor this week.</div>" : "") +
         '<div class="progs">' + cards + "</div>" +
         guidesSection() +
-        '<div class="card stack-sm"><h2>Stacking, in plain words.</h2><ul class="plain">' +
+        '<div class="card stack-sm"><h2>Stacking, in plain words</h2><ul class="plain">' +
           "<li>One project can get grant support and include SR&amp;ED work.</li>" +
           "<li>Government assistance, such as an IRAP or Mitacs contribution, comes off the costs you claim for SR&amp;ED.</li>" +
           "<li>Provincial R&amp;D credits also count as assistance against the federal claim.</li>" +
@@ -459,11 +459,11 @@
     /* ---------- membership ---------- */
     var PLANS = [
       {id: "starter", t: "Starter", m: 79, y: 790, who: "A small team with its first SR&ED project.",
-       f: ["1 company, up to 5 people", "3 active projects", "Evidence locker, 10 GB", "Weekly time and gap alerts", "Eligibility check and SR&ED guide"], no: ["Other funding programs and application guides"]},
+       f: ["1 company, up to 5 people", "3 active projects", "Evidence locker, 10 GB", "Weekly time and gap alerts", "Eligibility check, SR&ED guide and help answers"], no: ["Other funding programs and application guides", "Live training and onboarding"]},
       {id: "growth", t: "Growth", m: 199, y: 1990, best: true, who: "Companies claiming every year.",
-       f: ["Up to 25 people", "Unlimited projects", "Evidence locker, 100 GB", "Other funding: eligibility and how to apply", "Credit estimator and binder export", "1 free advisor seat (view only)", "Email support"]},
+       f: ["Up to 25 people", "Unlimited projects", "Evidence locker, 100 GB", "Other funding: eligibility and how to apply", "Onboarding session and monthly SR&ED training", "Credit estimator and binder export", "1 free advisor seat (view only)", "Email support"]},
       {id: "scale", t: "Scale", m: 449, y: 4490, who: "Larger R&D teams and groups of companies.",
-       f: ["Unlimited people", "Up to 3 related companies", "Evidence locker, 1 TB", "Other funding: eligibility and how to apply", "Funding review call each year", "Audit log export", "Priority support"]}
+       f: ["Unlimited people", "Up to 3 related companies", "Evidence locker, 1 TB", "Other funding: eligibility and how to apply", "Team training, claim walkthrough and funding coaching", "Audit log export", "Priority support"]}
     ];
     var STATUS = {trialing: "free trial", active: "active", past_due: "payment overdue", unpaid: "unpaid", canceled: "cancelled",
                   incomplete: "payment not finished", incomplete_expired: "payment not finished", paused: "paused"};
@@ -512,7 +512,7 @@
       }
       var manage = live && mgr && portalLink() && (paid || st.status === "canceled") ? '<button class="btn alt small" type="button" data-g="manage" data-fk="g-manage">Manage billing and invoices</button>' : "";
       return '<section class="stack" aria-labelledby="h-main">' +
-        head("Membership", '<span class="soft">One price a year.</span> Less than a day of consulting.',
+        head("Membership", '<span class="soft">Simple plans.</span> Less than a day of consulting, for a whole year.',
           "Every plan includes the full binder, locked evidence and the eligibility tools. Prices are in Canadian dollars, plus tax. Pay yearly and get two months free.") +
         paidFlash() +
         (live ? "" : '<div class="card row between demo-prev"><div><p class="eyebrow">Demo only</p><p class="small muted">See the portal the way each plan sees it. Try Starter, then open Other funding.</p></div>' +
@@ -533,7 +533,7 @@
 
     function overviewCard() {
       var left = days(h.today, CLEAN_TECH_DUE);
-      return '<div class="card news-card stack-sm rv"><div class="row between"><h2>New in SR&amp;ED.</h2><a href="#learn">Read the guide</a></div>' +
+      return '<div class="card news-card stack-sm rv"><div class="row between"><h2>New in SR&amp;ED</h2><a href="#learn">Read the guide</a></div>' +
         '<ul class="news">' + NEWS.slice(0, 2).map(function (n) { return '<li class="news-i"><span class="stamp">' + n.d + "</span><div><b>" + esc(n.t) + "</b><p>" + esc(n.b) + "</p></div></li>"; }).join("") + "</ul>" +
         (left >= 0 ? '<p class="small"><span class="chip strong">' + icon("clock") + left + ' days</span> to the Clean Technology ITC retroactive filing date. <a href="#programs">See other funding</a></p>' : "") +
         "</div>";
@@ -608,7 +608,8 @@
       views: {eligibility: vEligibility, claimable: vClaimable, programs: vPrograms, learn: vLearn, plans: vPlans},
       overviewCard: overviewCard,
       estimate: function () { return calc(gs.est || estDefaults()).total; },
-      locked: function (r) { return r === "programs" && !fundingAccess(); }
+      locked: function (r) { return r === "programs" && !fundingAccess(); },
+      paid: function () { return fundingAccess(); }
     };
   };
 })();
