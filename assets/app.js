@@ -310,7 +310,7 @@
       '<div class="hm-legend"><span>Less</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><span>More</span></div>';
 
     var recent = state.evidence.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 6).map(function (e) {
-      return '<li><span class="ra-ico">' + icon("files") + '</span><div class="ra-b"><b>' + esc(e.title) + '</b><span class="small muted">' + esc(project(e.project).name) + " · " + esc(e.type || "") + '</span></div><span class="stamp">' + longDate(e.date) + "</span></li>";
+      return '<li><span class="ra-ico">' + icon("files") + '</span><div class="ra-b"><button class="rec-link" type="button" data-act="rec" data-id="' + esc(e.id) + '">' + esc(e.title) + '</button><span class="small muted">' + esc(project(e.project).name) + " · " + esc(e.type || "") + '</span></div><span class="stamp">' + longDate(e.date) + "</span></li>";
     }).join("");
 
     var actions = g.slice(0, 4).map(gapItem).join("");
@@ -429,14 +429,16 @@
       '<div class="field"><label for="ev-project">Project</label><select id="ev-project" name="project">' + options(state.projects, pid || (state.projects[0] && state.projects[0].id), "id", "name") + "</select></div>" +
       '<div class="field"><label for="ev-person">Person</label><select id="ev-person" name="person">' + options(state.people, state.people[0] && state.people[0].id, "id", "name") + "</select></div>" +
       '<div class="field"><label for="ev-source">Source</label><select id="ev-source" name="source">' + options(SOURCES, "Upload") + "</select></div>" +
-      '<div class="field wide"><label for="ev-file">File (optional)</label><input id="ev-file" name="file" type="file"><p class="hint">' + (MODE === "live" ? "Up to 50 MB. Once filed, it can’t be replaced." : "In the demo, only the file name is kept.") + "</p></div>" +
+      '<div class="field wide"><span class="lbl">File (optional)</span><label class="dropzone" for="ev-file"><input id="ev-file" name="file" type="file" class="dz-input" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip">' +
+        icon("upload-simple") + '<b>Drop a file here, or choose one</b><span class="small muted">Photos, PDFs and documents up to 50 MB. ' + (MODE === "live" ? "Once filed, it can’t be replaced." : "In the demo, files stay on this device.") + "</span></label>" +
+        '<div id="dz-picked"></div></div>' +
       "</div>" +
       '<div class="row"><button class="btn" type="submit" data-fk="ev-add">File it <span class="arr" aria-hidden="true">&rarr;</span></button><span class="hint">Dated ' + longDate(TODAY) + ". The date can’t be changed later.</span></div></form>";
   }
   function evidenceRows(list) {
     return list.map(function (e) {
       return '<tr><td data-v="' + e.date + '"><span class="stamp">' + longDate(e.date) + "</span></td>" +
-        "<td>" + esc(e.title) + (e.file ? (MODE === "live" && e.filePath ? '<br><button class="linkbtn" type="button" data-act="download" data-path="' + esc(e.filePath) + '">' + esc(e.file) + "</button>" : '<br><span class="small muted">' + esc(e.file) + "</span>") : "") + "</td>" +
+        '<td><button class="rec-link" type="button" data-act="rec" data-id="' + esc(e.id) + '">' + esc(e.title) + "</button>" + (e.file ? '<br><span class="small muted rec-file">' + icon(fileIcon(fileKind(e.file, localFiles[e.id] && localFiles[e.id].type))) + esc(e.file) + "</span>" : "") + "</td>" +
         "<td>" + esc(e.type) + "</td><td>" + esc(project(e.project).name) + "</td>" +
         "<td>" + esc(person(e.person).name) + "</td><td>" + esc(e.source) + "</td>" +
         '<td><span class="pill quiet">' + ICON_LOCK + "Locked</span></td></tr>";
@@ -495,7 +497,7 @@
       else if (pr.status === "Active" && s.age > state.threshold) next.push(["No record for " + s.age + " days. File what happened since " + longDate(s.last), "evidence"]);
       if (!s.hrs) next.push(["No hours logged to this project this week", "time"]);
       var recent = s.recs.slice().sort(function (x, y) { return x.date < y.date ? 1 : -1; }).slice(0, 5).map(function (e) {
-        return '<li><span class="ra-ico">' + icon("files") + '</span><div class="ra-b"><b>' + esc(e.title) + '</b><span class="small muted">' + esc(e.type) + " · " + esc(person(e.person).name) + '</span></div><span class="stamp">' + longDate(e.date) + "</span></li>";
+        return '<li><span class="ra-ico">' + icon("files") + '</span><div class="ra-b"><button class="rec-link" type="button" data-act="rec" data-id="' + esc(e.id) + '">' + esc(e.title) + '</button><span class="small muted">' + esc(e.type) + " · " + esc(person(e.person).name) + '</span></div><span class="stamp">' + longDate(e.date) + "</span></li>";
       }).join("");
       body = '<div class="pstats">' +
           stat("T661 lines", s.lines + "/3", a + " of 4 prompts answered") +
@@ -549,7 +551,7 @@
     ];
     var done = steps.filter(function (s) { return s[1]; }).length;
     if (done === steps.length) return "";
-    return '<div class="card setup stack-sm"><div class="row between"><h2>Get set up</h2><span class="stamp">' + done + " of " + steps.length + " done</span></div>" +
+    return '<div class="card setup stack-sm"><div class="row between"><h2>Get set up</h2><div class="row"><span class="stamp">' + done + " of " + steps.length + ' done</span>' + (canManage() ? '<button class="btn alt small" type="button" data-act="wizard">Guided setup</button>' : "") + "</div></div>" +
       '<div class="kpi-bar" aria-hidden="true"><span style="width:' + Math.round(done / steps.length * 100) + '%"></span></div>' +
       '<ol class="setup-l">' + steps.map(function (s, i) {
         return '<li class="' + (s[1] ? "done" : "") + '"><span class="setup-n">' + (s[1] ? icon("check-circle") : i + 1) + '</span><div><b>' + s[0] + '</b><span class="small muted">' + s[3] + "</span></div>" +
@@ -1040,6 +1042,8 @@
         date: TODAY, title: title, type: form.elements.type.value, project: form.elements.project.value,
         person: form.elements.person.value, source: form.elements.source.value, file: fileObj ? fileObj.name : ""
       };
+      if (fileObj && fileObj.size > 50 * 1024 * 1024) { state.flash = {bad: true, text: fileObj.name + " is over 50 MB. Choose a smaller file."}; render(); return; }
+      if (fileObj) localFiles[rec.id] = {url: URL.createObjectURL(fileObj), type: fileObj.type, name: fileObj.name, size: fileObj.size};
       state.evidence.push(rec);
       persist.evidence(rec, fileObj);
       state.filters = {project: "all", type: "all"};
@@ -1520,8 +1524,9 @@
     }
     hideGate(); setNav(); renderHeader();
     var fp = document.querySelector(".foot p");
-    if (fp) fp.textContent = "This portal organizes records. It does not decide whether work qualifies for SR&ED or prepare a claim: your accountant or SR&ED advisor makes those calls.";
+    if (fp) fp.textContent = "This portal organizes your SR&ED records. It does not decide whether work qualifies or prepare the claim: your accountant or SR&ED advisor makes those calls.";
     route = routeFromHash(); firstAnim = true; render(false);
+    maybeWizard();
   }
 
   async function afterSignIn(user) {
@@ -1685,7 +1690,7 @@
     state.projects.forEach(function (p) { out.push({kind: "Project", label: p.name, icon: "flask", go: "project/" + p.id}); });
     [["File a record", "evidence", "plus"], ["Log this week’s hours", "time", "clock"], ["Log a grant or subsidy", "funding", "receipt"],
      ["Check a project’s eligibility", "eligibility", "seal-check"], ["Estimate your credit", "claimable", "calculator"],
-     ["Change the year end", "deadlines", "calendar-blank"], ["Help and training", "", "question"], ["Copy the request list", "strength", "gauge"], ["Export the binder", "export", "books"]
+     ["Change the year end", "deadlines", "calendar-blank"], ["Help and training", "", "question"], ["Guided setup", "", "rocket-launch"], ["Copy the request list", "strength", "gauge"], ["Export the binder", "export", "books"]
     ].forEach(function (a) { out.push({kind: "Action", label: a[0], icon: a[2], go: a[1]}); });
     state.evidence.slice(-40).reverse().forEach(function (e) { out.push({kind: "Record", label: e.title, sub: e.date, icon: "files", go: "evidence"}); });
     return out;
@@ -1714,6 +1719,7 @@
     if (!it) return;
     cmdClose();
     if (it.label === "Help and training" && HELP) { HELP.open(); return; }
+    if (it.label === "Guided setup") { openWizard(); return; }
     if (it.open) { state.open = {}; state.open[it.open] = true; }
     if (location.hash === "#" + it.go) render(true); else location.hash = it.go;
     if (it.open) setTimeout(function () {
@@ -1771,6 +1777,215 @@
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && document.querySelector(".drawer:not([hidden])")) { e.preventDefault(); closeDrawer(); }
   });
+
+  /* ---------- record viewer with photo and PDF preview ---------- */
+  var localFiles = {};   // files added in this session: record id -> {url, type, name, size}
+  var IMG_EXT = /\.(png|jpe?g|gif|webp|bmp|svg)$/i, PDF_EXT = /\.pdf$/i;
+  function fileKind(name, type) {
+    if ((type && type.indexOf("image/") === 0) || IMG_EXT.test(name || "")) return "image";
+    if (type === "application/pdf" || PDF_EXT.test(name || "")) return "pdf";
+    return name ? "file" : "none";
+  }
+  function fileIcon(kind) { return kind === "image" ? "image-square" : kind === "pdf" ? "file-pdf" : "file-text"; }
+  function sizeText(b) { return b > 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1024)) + " KB"; }
+  function previewHtml(kind, url, name) {
+    if (kind === "image") return '<div class="pv pv-img"><img src="' + esc(url) + '" alt="' + esc(name) + '"></div>';
+    if (kind === "pdf") return '<div class="pv pv-pdf"><iframe src="' + esc(url) + '#view=FitH" title="' + esc(name) + '"></iframe></div>';
+    return '<div class="pv pv-none">' + icon("file-text") + "<p><b>" + esc(name) + "</b><br>This file type can’t be previewed here. Download it to open it.</p></div>";
+  }
+  function closeRecord() { var d = document.getElementById("recDrawer"); if (d) { d.remove(); document.body.classList.remove("drawer-open"); } }
+  function openRecord(id) {
+    var e = state.evidence.find(function (x) { return x.id === id; }); if (!e) return;
+    closeRecord();
+    var lf = localFiles[id], kind = fileKind(e.file, lf && lf.type);
+    var meta = [["Filed", longDate(e.date)], ["Type", e.type], ["Project", project(e.project).name], ["Person", person(e.person).name], ["Source", e.source]]
+      .map(function (m) { return "<dt>" + m[0] + "</dt><dd>" + esc(m[1] || "") + "</dd>"; }).join("");
+    var pv;
+    if (lf) pv = previewHtml(kind, lf.url, e.file);
+    else if (MODE === "live" && e.filePath) pv = '<div class="pv pv-load" id="pvSlot">' + icon(fileIcon(kind)) + "<p>Loading the file…</p></div>";
+    else if (e.file) pv = '<div class="pv pv-none">' + icon(fileIcon(kind)) + "<p><b>" + esc(e.file) + "</b><br>This is a sample record, so there is no file to show. Files you add preview here straight away.</p></div>";
+    else pv = '<div class="pv pv-none">' + icon("file-text") + "<p>No file is attached to this record. The description is the record.</p></div>";
+    document.body.insertAdjacentHTML("beforeend",
+      '<div class="drawer rec-drawer" id="recDrawer"><div class="drawer-scrim" data-act="rec-close"></div>' +
+      '<aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="rec-t">' +
+      '<header class="drawer-head"><h2 id="rec-t">' + esc(e.title) + '</h2><button class="icon-btn" type="button" data-act="rec-close" aria-label="Close record">' + icon("x-circle") + "</button></header>" +
+      '<div class="drawer-body stack-sm">' + pv +
+        '<div class="row" id="pvActions">' + (lf ? '<a class="btn alt small" href="' + esc(lf.url) + '" target="_blank" rel="noopener">' + icon("arrow-square-out") + "Open full size</a>" : "") + "</div>" +
+        '<dl class="rec-meta">' + meta + "</dl>" +
+        '<p class="rec-lock small muted">' + ICON_LOCK + "Locked on " + longDate(e.date) + ". It can’t be edited or deleted.</p>" +
+      "</div></aside></div>");
+    document.body.classList.add("drawer-open");
+    var x = document.querySelector("#recDrawer .icon-btn"); if (x) x.focus();
+    if (!lf && MODE === "live" && e.filePath) {
+      sb.storage.from("evidence").createSignedUrl(e.filePath, 600).then(function (r) {
+        var slot = document.getElementById("pvSlot"); if (!slot) return;
+        if (r.error || !r.data) { slot.innerHTML = icon("file-text") + "<p>The file could not be loaded. Check your connection and try again.</p>"; return; }
+        var url = r.data.signedUrl;
+        slot.outerHTML = previewHtml(kind, url, e.file);
+        var acts = document.getElementById("pvActions");
+        if (acts) acts.innerHTML = '<a class="btn alt small" href="' + esc(url) + '" target="_blank" rel="noopener">' + icon("arrow-square-out") + "Open full size</a>" +
+          '<a class="btn alt small" href="' + esc(url) + '&download=" rel="noopener">' + icon("download-simple") + "Download</a>";
+      });
+    }
+  }
+
+  /* ---------- drag and drop ---------- */
+  var MAX_FILE = 50 * 1024 * 1024;
+  function showPicked(input) {
+    var f = input.files && input.files[0], box = document.getElementById("dz-picked"), zone = input.closest(".dropzone");
+    if (!box) return;
+    if (!f) { box.innerHTML = ""; if (zone) zone.classList.remove("has-file"); return; }
+    if (f.size > MAX_FILE) {
+      box.innerHTML = '<p class="dz-err" role="alert">' + esc(f.name) + " is " + sizeText(f.size) + ". The limit is 50 MB. Choose a smaller file.</p>";
+      try { input.value = ""; } catch (err) {}
+      if (zone) zone.classList.remove("has-file");
+      return;
+    }
+    var kind = fileKind(f.name, f.type), thumb = kind === "image" ? '<img src="' + URL.createObjectURL(f) + '" alt="">' : icon(fileIcon(kind));
+    box.innerHTML = '<div class="dz-file">' + thumb + "<div><b>" + esc(f.name) + '</b><span class="small muted">' + sizeText(f.size) + '</span></div><button class="linkbtn" type="button" data-act="dz-clear">Remove</button></div>';
+    if (zone) zone.classList.add("has-file");
+    var title = document.getElementById("ev-title");
+    if (title && !title.value.trim()) { var nm = f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim(); title.value = nm.charAt(0).toUpperCase() + nm.slice(1); title.dispatchEvent(new Event("input", {bubbles: true})); }
+  }
+  function putFile(file) {
+    var input = document.getElementById("ev-file"); if (!input || !file) return;
+    try { var dt = new DataTransfer(); dt.items.add(file); input.files = dt.files; } catch (err) { return; }
+    showPicked(input);
+  }
+  function dropTarget() { return (route === "evidence" || route === "project") && canWrite() && app.querySelector("#dr-evidence, #f-evidence"); }
+  var dragDepth = 0, dropVeil = null;
+  function veil(on) {
+    if (on && !dropVeil) {
+      dropVeil = document.createElement("div"); dropVeil.className = "drop-veil";
+      dropVeil.innerHTML = '<div class="drop-card">' + icon("upload-simple") + "<b>Drop to file a record</b><span>Photos, PDFs and documents up to 50 MB</span></div>";
+      document.body.appendChild(dropVeil);
+    } else if (!on && dropVeil) { dropVeil.remove(); dropVeil = null; }
+  }
+  function hasFiles(e) { return e.dataTransfer && [].indexOf.call(e.dataTransfer.types || [], "Files") >= 0; }
+  document.addEventListener("dragenter", function (e) {
+    if (!hasFiles(e)) return;
+    var zone = e.target.closest && e.target.closest(".dropzone");
+    if (zone) { zone.classList.add("over"); return; }
+    if (!dropTarget() || document.querySelector(".drawer:not([hidden])")) return;
+    dragDepth++; veil(true);
+  });
+  document.addEventListener("dragover", function (e) { if (hasFiles(e) && (dropVeil || (e.target.closest && e.target.closest(".dropzone")))) e.preventDefault(); });
+  document.addEventListener("dragleave", function (e) {
+    var zone = e.target.closest && e.target.closest(".dropzone");
+    if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove("over");
+    if (dropVeil && --dragDepth <= 0) { dragDepth = 0; veil(false); }
+  });
+  document.addEventListener("drop", function (e) {
+    if (!hasFiles(e)) return;
+    var zone = e.target.closest && e.target.closest(".dropzone");
+    if (!zone && !dropVeil) return;
+    e.preventDefault(); dragDepth = 0; veil(false);
+    if (zone) zone.classList.remove("over");
+    var f = e.dataTransfer.files && e.dataTransfer.files[0]; if (!f) return;
+    if (!zone) openDrawer("dr-evidence");
+    setTimeout(function () { putFile(f); }, zone ? 0 : 80);
+  });
+  document.addEventListener("change", function (e) { if (e.target.id === "ev-file") showPicked(e.target); });
+
+  /* ---------- guided first-run setup ---------- */
+  var wiz = null;
+  function wizKey() { return "sred-wizard-" + (MODE === "live" ? orgId : "demo"); }
+  function wizSeen() { try { return localStorage.getItem(wizKey()) === "done"; } catch (e) { return false; } }
+  function wizStep() {
+    var s = wiz.step, ye = wiz.ye || yearEnd(), dots = [0, 1, 2, 3, 4].map(function (i) { return '<span class="wz-dot' + (i === s ? " on" : i < s ? " done" : "") + '"></span>'; }).join("");
+    var body, next = "Continue", back = s > 0 && s < 4;
+    if (s === 0) {
+      body = '<div class="wz-hero">' + icon("rocket-launch") + "</div><h2 id=\"wz-t\">Let’s set up " + esc(ORG_NAME.replace(" (sample)", "")) + "</h2>" +
+        '<p class="lead">Three short steps, about two minutes. You can change everything later.</p>' +
+        '<ol class="wz-list"><li>Your tax year end, so every deadline is right</li><li>Your first R&amp;D project</li><li>Who works on R&amp;D</li></ol>';
+      next = "Start";
+    } else if (s === 1) {
+      var due = addMonthsCRA(ye, 18);
+      body = '<p class="eyebrow">Step 1 of 3</p><h2 id="wz-t">When does your tax year end?</h2><p class="hint">It is on your last T2 return. Most companies use December 31.</p>' +
+        '<div class="field"><label for="wz-ye">Last day of the tax year</label><input id="wz-ye" type="date" value="' + ye + '"></div>' +
+        '<p class="wz-note" id="wz-due">Your SR&amp;ED claim for this year is due <b>' + longDate(due) + "</b>.</p>";
+    } else if (s === 2) {
+      body = '<p class="eyebrow">Step 2 of 3</p><h2 id="wz-t">What are you working on?</h2><p class="hint">Name one technical problem your team is trying to solve. Add more later.</p>' +
+        '<div class="field"><label for="wz-name">Project name</label><input id="wz-name" value="' + esc(wiz.name || "") + '" placeholder="For example: Sensor enclosure heat test"></div>' +
+        '<div class="field"><label for="wz-goal">What are you trying to achieve? (optional)</label><textarea id="wz-goal" rows="3" placeholder="For example: keep the sensor working from −40°C to 50°C">' + esc(wiz.goal || "") + "</textarea></div>" +
+        (state.projects.length ? '<p class="hint">You already have ' + plural(state.projects.length, "project", "projects") + ". Leave this blank to skip.</p>" : "");
+    } else if (s === 3) {
+      body = '<p class="eyebrow">Step 3 of 3</p><h2 id="wz-t">Who works on R&amp;D?</h2><p class="hint">Everyone who works on these projects logs their hours each week, so their wages count in the claim.</p>' +
+        '<ul class="wz-people">' + state.people.map(function (p) { return "<li>" + icon("users") + "<span><b>" + esc(p.name) + '</b><span class="small muted">' + esc(p.role || "") + "</span></span></li>"; }).join("") + "</ul>" +
+        (MODE === "live" ? '<p class="hint">Invite the rest of your team from the Team page when you finish.</p>' : '<p class="hint">In your own portal, you invite people by email from the Team page.</p>');
+    } else {
+      body = '<div class="wz-hero done">' + icon("check-circle") + '</div><h2 id="wz-t">You’re set up</h2><p class="lead">Here is what to do this week:</p>' +
+        '<ol class="wz-list"><li>File a record whenever a test, design change or meeting happens</li><li>Log hours by project each Monday</li><li>Write the T661 lines on each project as the work goes</li></ol>';
+      next = wiz.pid ? "Open my project" : "Go to the overview";
+    }
+    return '<div class="wz-box" role="dialog" aria-modal="true" aria-labelledby="wz-t"><div class="wz-top"><div class="wz-dots" aria-hidden="true">' + dots + '</div><button class="linkbtn" type="button" data-act="wz-skip">' + (s === 4 ? "Close" : "Skip for now") + "</button></div>" +
+      '<div class="wz-body">' + body + '</div><div class="wz-foot">' + (back ? '<button class="btn alt" type="button" data-act="wz-back">Back</button>' : "<span></span>") +
+      '<button class="btn" type="button" data-act="wz-next">' + next + "</button></div></div>";
+  }
+  function wizRender() {
+    var el = document.getElementById("wizard");
+    if (!el) { el = document.createElement("div"); el.id = "wizard"; el.className = "wizard"; document.body.appendChild(el); }
+    el.innerHTML = '<div class="wz-scrim"></div>' + wizStep();
+    document.body.classList.add("drawer-open");
+    setTimeout(function () { var f = el.querySelector(".wz-body input, .wz-body textarea") || el.querySelector("[data-act='wz-next']"); if (f) f.focus(); }, 40);
+  }
+  function openWizard() { wiz = {step: 0, ye: state.yearEnd || yearEnd(), name: "", goal: "", pid: null}; wizRender(); }
+  function closeWizard(done) {
+    var el = document.getElementById("wizard"); if (el) el.remove();
+    document.body.classList.remove("drawer-open");
+    try { localStorage.setItem(wizKey(), "done"); } catch (e) {}
+    wiz = null;
+    if (done) render();
+  }
+  function wizNext() {
+    var s = wiz.step;
+    if (s === 1) {
+      var v = (document.getElementById("wz-ye") || {}).value;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v || "")) { toast("Choose the last day of your tax year.", true); return; }
+      wiz.ye = v; state.yearEnd = v; YEAR = v.slice(0, 4); persist.yearEnd(v, state.sbd !== false);
+    }
+    if (s === 2) {
+      wiz.name = (document.getElementById("wz-name") || {}).value.trim(); wiz.goal = (document.getElementById("wz-goal") || {}).value.trim();
+      if (!wiz.name && !state.projects.length) { toast("Give your first project a name, or skip for now.", true); return; }
+      if (wiz.name && !wiz.pid) {
+        var np = {id: uuid(), name: wiz.name, status: "Active", objective: wiz.goal, uncertainty: "", hypothesis: "", results: ""};
+        state.projects.push(np); persist.addProject(np);
+        if (wiz.goal) persist.projectField(np.id, "objective", wiz.goal);
+        wiz.pid = np.id;
+      }
+    }
+    if (s === 4) {
+      var pid = wiz.pid; closeWizard(false);
+      if (pid) { state.ptab = "overview"; location.hash = "project/" + pid; } else if (location.hash === "#overview") render(); else location.hash = "overview";
+      return;
+    }
+    wiz.step++; wizRender();
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-act]"); if (!b) return;
+    var a = b.getAttribute("data-act");
+    if (a === "rec") { openRecord(b.getAttribute("data-id")); return; }
+    if (a === "rec-close") { closeRecord(); return; }
+    if (a === "dz-clear") { var i = document.getElementById("ev-file"); if (i) { try { i.value = ""; } catch (err) {} showPicked(i); } return; }
+    if (a === "wizard") { openWizard(); return; }
+    if (!wiz) return;
+    if (a === "wz-next") wizNext();
+    else if (a === "wz-back") { wiz.step--; wizRender(); }
+    else if (a === "wz-skip") closeWizard(true);
+  });
+  document.addEventListener("input", function (e) {
+    if (e.target.id === "wz-ye" && /^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) {
+      var d = document.getElementById("wz-due"); if (d) d.innerHTML = "Your SR&amp;ED claim for this year is due <b>" + longDate(addMonthsCRA(e.target.value, 18)) + "</b>.";
+    }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (wiz) { e.preventDefault(); closeWizard(true); return; }
+    if (document.getElementById("recDrawer")) { e.preventDefault(); closeRecord(); }
+  });
+  function maybeWizard() {
+    if (MODE === "live" && canManage() && !wizSeen() && (!state.yearEnd || !state.projects.length)) setTimeout(openWizard, 400);
+  }
 
   /* ---------- start ---------- */
   var BASE_NAV = NAV.slice();

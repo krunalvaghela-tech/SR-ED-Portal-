@@ -63,7 +63,9 @@
         '<header class="drawer-head"><h2 id="help-t">Help and training</h2><button class="icon-btn" type="button" data-help-close aria-label="Close help">' + icon("x-circle") + "</button></header>" +
         '<div class="drawer-body stack-sm">' +
           '<label class="dt-search help-search"><span class="sr">Search help</span>' + icon("magnifying-glass") + '<input type="search" id="helpQ" placeholder="Search answers, for example deadline" value="' + esc(q) + '"></label>' +
-          '<div id="helpList">' + faqHtml() + "</div>" + trainingHtml() +
+          '<div id="helpList">' + faqHtml() + "</div>" +
+          '<div class="help-setup"><div><b>New to the portal?</b><span class="small muted">A two-minute guided setup: year end, first project and team.</span></div><button class="btn alt small" type="button" data-act="wizard" data-help-close>Run guided setup</button></div>' +
+          trainingHtml() +
         "</div></aside></div>";
     }
     function open() {
