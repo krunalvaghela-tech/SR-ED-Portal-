@@ -124,6 +124,9 @@
         {id:"f6", label:"General ledger report, Jan to Oct 2026", status:"ok", note:""}
       ],
       yearEnd: "2026-12-31", sbd: true,
+      company: {legal_name: "Tallgrass Robotics Ltd.", operating_name: "Tallgrass Robotics", business_number: "123456789RC0001", province: "MB", ccpc: true,
+                industry: "Agriculture and agri-food", employees: 14, address: "100 Sample Street, Unit 4", city: "Winnipeg", postal_code: "R3B 0A1",
+                contact_name: "Riley Chen (sample)", contact_email: "riley@example.com", contact_phone: "204-555-0142", advisor_firm: "Sample Accounting LLP", advisor_email: "sred@example.com"},
       checklist: {tests: "yes", designs: "yes", notes: "no", people: "no", payroll: "yes", specified: "no",
                   mat_inv: "yes", mat_use: "no", overhead: "yes", ct_signed: "no", ct_inv: "yes", ct_reports: "no",
                   tp_agree: "na", tp_reports: "na", cap_agree: "na", cap_use: "na", cap_new: "na",
@@ -300,7 +303,8 @@
       return '<a class="mini" href="#' + href + '"><span class="mini-ico">' + icon(ic) + '</span><span class="mini-v num">' + value + '</span><span class="mini-l">' + label + '</span><span class="mini-s">' + sub + "</span></a>";
     };
     var minis = '<div class="minis">' +
-      mini("claimable", "calculator", "Estimated credit", est == null ? "–" : money.format(est), "Federal plus provincial") +
+      (est == null && GUIDE && !GUIDE.allows("estimator") ? mini("plans", "lock-simple", "Estimated credit", "Growth", "Unlock the credit estimator") :
+        mini("claimable", "calculator", "Estimated credit", est == null ? "–" : money.format(est), "Federal plus provincial")) +
       mini("strength", "gauge", "Claim strength", strength == null ? "–" : strength + "%", strength >= 85 ? "Strong" : strength >= 65 ? "Fair" : "At risk") +
       mini("deadlines", "calendar-blank", "Claim due", left >= 0 ? left + "<small> days</small>" : "Passed", longDate(due)) +
       mini("gaps", "warning-circle", "Open gaps", String(g.length), high + " to fix first") +
@@ -500,6 +504,97 @@
       '<input type="search" data-dt="' + id + '" placeholder="' + placeholder + '" data-fk="dt-' + id + '"></label><span class="hint dt-count" id="' + id + '-count" role="status">' + count + "</span></div>";
   }
 
+  /* ---------- company profile (one per client company) ---------- */
+  var PROVINCE_LIST = [["AB","Alberta"],["BC","British Columbia"],["MB","Manitoba"],["NB","New Brunswick"],["NL","Newfoundland and Labrador"],["NS","Nova Scotia"],
+    ["NT","Northwest Territories"],["NU","Nunavut"],["ON","Ontario"],["PE","Prince Edward Island"],["QC","Quebec"],["SK","Saskatchewan"],["YT","Yukon"]];
+  var INDUSTRIES = ["Advanced manufacturing","Agriculture and agri-food","Aerospace and defence","Building and construction products","Clean technology and energy",
+    "Electronics and hardware","Food and beverage processing","Life sciences and health","Mining and resources technology","Software and IT","Transportation and vehicles","Other"];
+  var CO_FIELDS = [
+    // key, label, group, required for a complete profile, input type, hint
+    ["legal_name", "Legal name", "Business", true, "text", "As registered, for example Tallgrass Robotics Ltd."],
+    ["operating_name", "Operating name", "Business", false, "text", "The name your team uses, if different. It shows at the top left."],
+    ["business_number", "CRA business number", "Business", true, "text", "9 digits, with or without the RC program account, for example 123456789RC0001."],
+    ["province", "Province", "Business", true, "province", "Where the R&D is done. It sets the provincial credit rate."],
+    ["ccpc", "Canadian-controlled private corporation (CCPC)?", "Business", true, "yesno", "CCPCs can get the 35% refundable federal credit."],
+    ["industry", "Industry", "Business", true, "industry", ""],
+    ["employees", "Employees", "Business", false, "number", "Full-time equivalents, roughly."],
+    ["address", "Street address", "Address", false, "text", ""],
+    ["city", "City", "Address", false, "text", ""],
+    ["postal_code", "Postal code", "Address", false, "text", "For example R3B 2E9."],
+    ["contact_name", "Main contact", "Contacts", true, "text", "Who we talk to about the account."],
+    ["contact_email", "Contact email", "Contacts", true, "email", ""],
+    ["contact_phone", "Contact phone", "Contacts", false, "tel", "For example 204-555-0142."],
+    ["advisor_firm", "Accountant or SR&ED advisor", "Contacts", false, "text", "The firm that files your claim."],
+    ["advisor_email", "Advisor email", "Contacts", false, "email", ""]
+  ];
+  function company() { return state.company || (state.company = {}); }
+  function companyName() { var c = company(); return c.operating_name || c.legal_name || ORG_NAME.replace(" (sample)", ""); }
+  function provinceName(code) { var p = PROVINCE_LIST.find(function (x) { return x[0] === code; }); return p ? p[1] : ""; }
+  function profileDone() {
+    var req = CO_FIELDS.filter(function (f) { return f[3]; });
+    var miss = req.filter(function (f) { var v = company()[f[0]]; return v === undefined || v === null || v === ""; });
+    return {pct: Math.round((req.length - miss.length) / req.length * 100), missing: miss};
+  }
+  function coValid(key, v) {
+    if (v === "" || v === null || v === undefined) return true;
+    if (key === "business_number") return /^\d{9}(RC\d{4})?$/i.test(String(v).replace(/\s+/g, ""));
+    if (key === "contact_email" || key === "advisor_email") return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
+    if (key === "postal_code") return /^[A-Za-z]\d[A-Za-z] ?\d[A-Za-z]\d$/.test(v);
+    if (key === "contact_phone") return String(v).replace(/\D/g, "").length >= 10;
+    return true;
+  }
+  var CO_ERR = {business_number: "Use 9 digits, optionally followed by RC and 4 digits.", contact_email: "Enter a full email address.", advisor_email: "Enter a full email address.",
+    postal_code: "Use the format A1A 1A1.", contact_phone: "Enter a 10-digit phone number."};
+  function coInput(f, c, ro) {
+    var k = f[0], v = c[k], id = "co-" + k, dis = ro ? " disabled" : "", inner;
+    if (f[4] === "province") inner = '<select id="' + id + '" name="' + k + '"' + dis + '><option value="">Choose a province</option>' + PROVINCE_LIST.map(function (p) { return '<option value="' + p[0] + '"' + (v === p[0] ? " selected" : "") + ">" + p[1] + "</option>"; }).join("") + "</select>";
+    else if (f[4] === "industry") inner = '<select id="' + id + '" name="' + k + '"' + dis + '><option value="">Choose an industry</option>' + INDUSTRIES.map(function (x) { return "<option" + (v === x ? " selected" : "") + ">" + x + "</option>"; }).join("") + "</select>";
+    else if (f[4] === "yesno") inner = '<select id="' + id + '" name="' + k + '"' + dis + '><option value="">Choose</option><option value="yes"' + (v === true ? " selected" : "") + '>Yes</option><option value="no"' + (v === false ? " selected" : "") + ">No</option></select>";
+    else inner = '<input id="' + id + '" name="' + k + '" type="' + f[4] + '" value="' + esc(v == null ? "" : v) + '"' + (f[4] === "number" ? ' min="0" inputmode="numeric"' : "") + dis + ">";
+    return '<div class="field' + (k === "address" ? " wide" : "") + '"><label for="' + id + '">' + esc(f[1]) + (f[3] ? ' <span class="req" title="Needed for a complete profile">Required</span>' : "") + "</label>" + inner +
+      (f[5] ? '<p class="hint">' + esc(f[5]) + "</p>" : "") + '<p class="field-err" id="' + id + '-err" role="alert"></p></div>';
+  }
+  function usageHtml() {
+    var L = GUIDE ? GUIDE.limits() : {projects: Infinity, people: Infinity, storageGB: 100, label: "Growth"};
+    var meter = function (label, used, max, unit) {
+      var inf = !isFinite(max), pct = inf ? Math.min(100, used * 4) : Math.min(100, Math.round(used / max * 100));
+      return '<li><div class="pb-h"><span>' + label + '</span><span class="num">' + used + (inf ? "" : " of " + max) + (unit || "") + (inf ? '<span class="muted"> · no limit</span>' : "") + "</span></div>" +
+        '<span class="pb-t' + (!inf && used >= max ? " full" : "") + '" aria-hidden="true"><span style="width:' + (inf ? 12 : pct) + '%"></span></span></li>';
+    };
+    var active = state.projects.filter(function (p) { return (p.status || "Active") === "Active"; }).length;
+    return '<ul class="pbars">' + meter("Active projects", active, L.projects) + meter("People on the timesheet", state.people.length, L.people) +
+      '<li><div class="pb-h"><span>Evidence storage</span><span class="num">' + L.storageGB + " GB included</span></div></li></ul>";
+  }
+  function vCompany() {
+    var c = company(), done = profileDone(), ro = !canManage(), L = GUIDE ? GUIDE.limits() : null;
+    var groups = ["Business", "Address", "Contacts"].map(function (g) {
+      return '<div class="card stack-sm"><h2>' + (g === "Business" ? "Business details" : g === "Address" ? "Address" : "Contacts") + '</h2><div class="fields">' +
+        CO_FIELDS.filter(function (f) { return f[2] === g; }).map(function (f) { return coInput(f, c, ro); }).join("") + "</div></div>";
+    }).join("");
+    return '<section class="stack" aria-labelledby="h-main">' +
+      pageHead("Company", '<span class="soft">' + esc(companyName()) + ".</span> Company profile.",
+        "These details appear on your binder and set your provincial rate and deadlines. Every record, person and project in this portal belongs to this company only.",
+        ro ? "" : '<button class="btn" type="submit" form="f-co" data-fk="co-save">Save profile</button>') +
+      flashHtml() +
+      '<div class="ov-grid g2">' +
+        '<form class="stack" id="f-co" novalidate>' + groups + (ro ? '<p class="hint">Only a company admin can change the profile.</p>' : '<div class="row"><button class="btn" type="submit">Save profile</button></div>') + "</form>" +
+        '<div class="stack">' +
+          '<div class="card stack-sm"><div class="row between"><h2>Profile</h2><span class="stamp">' + done.pct + '% complete</span></div><span class="pb-t" aria-hidden="true"><span style="width:' + done.pct + '%"></span></span>' +
+            (done.missing.length ? '<p class="hint">Still needed: ' + done.missing.map(function (f) { return esc(f[1]); }).join(", ") + ".</p>" : '<p class="hint">Complete. Thank you.</p>') + "</div>" +
+          '<div class="card stack-sm"><div class="row between"><h2>Membership</h2><a class="link-sm" href="#plans">Manage</a></div><p><span class="tag">' + (L ? L.label : "Growth") + "</span></p>" + usageHtml() + "</div>" +
+          '<div class="card stack-sm"><div class="row between"><h2>Tax year</h2><a class="link-sm" href="#deadlines">Change</a></div><p>' + longDate(yearStart()) + " to " + longDate(yearEnd()) + '</p><p class="hint">Claim due ' + longDate(claimDue()) + ".</p></div>" +
+        "</div>" +
+      "</div></section>";
+  }
+  function canAddProject() {
+    var L = GUIDE ? GUIDE.limits() : null; if (!L) return true;
+    return state.projects.filter(function (p) { return (p.status || "Active") === "Active"; }).length < L.projects;
+  }
+  function projectLimitMsg() {
+    var L = GUIDE ? GUIDE.limits() : {projects: 3, label: "Starter"};
+    return L.label + " includes " + plural(L.projects, "active project", "active projects") + ". Upgrade to Growth for unlimited projects, or mark a finished project as closed.";
+  }
+
   /* ---------- projects list ---------- */
   function vProjects() {
     var rows = state.projects.map(function (pr) {
@@ -511,12 +606,14 @@
         '<td class="r num" data-v="' + s.recs.length + '">' + s.recs.length + '</td><td class="r num" data-v="' + s.hrs + '">' + fmt(s.hrs) + "</td>" +
         '<td data-v="' + (s.last || "") + '">' + (s.last ? '<span class="stamp">' + longDate(s.last) + "</span>" : '<span class="muted">None yet</span>') + "</td></tr>";
     }).join("");
-    var form = '<form class="form" id="f-project" novalidate>' +
+    var Lp = GUIDE ? GUIDE.limits() : null, activeN = state.projects.filter(function (p) { return (p.status || "Active") === "Active"; }).length;
+    var form = !canAddProject() ? '<div class="stack-sm"><p>' + esc(projectLimitMsg()) + '</p><div class="row"><a class="btn" href="#plans">See Growth and Scale</a></div></div>' :
+      '<form class="form" id="f-project" novalidate>' +
       '<div class="field"><label for="np-name">Project name</label><input id="np-name" name="name" placeholder="For example: Sensor enclosure heat test" data-fk="np-name"><p class="hint">Use a plain description of the technical goal. You can change it later.</p></div>' +
       '<div class="row"><button class="btn" type="submit" data-fk="np-add">Add project</button></div></form>';
     return '<section class="stack" aria-labelledby="h-main">' +
       pageHead("Projects", '<span class="soft">' + plural(state.projects.length, "project", "projects") + ".</span> Written the way CRA reads them.",
-        "Open a project to write its T661 lines, see its records and the hours logged to it.",
+        "Open a project to write its T661 lines, see its records and the hours logged to it." + (Lp && isFinite(Lp.projects) ? " Your " + Lp.label + " plan includes " + activeN + " of " + Lp.projects + " active projects." : ""),
         '<button class="btn alt" type="button" data-act="drawer" data-target="dr-project" data-needs-write>' + icon("plus") + "New project</button>") +
       flashHtml() +
       (state.projects.length ?
@@ -584,7 +681,9 @@
     }
     return '<section class="stack" aria-labelledby="h-main">' +
       '<nav class="backlink"><a href="#projects">' + icon("arrow-right", "flip") + "All projects</a></nav>" +
-      pageHead("Project", esc(pr.name), "", '<span class="pill ' + (pr.status === "Active" ? "good" : "quiet") + '">' + esc(pr.status || "Active") + "</span>" +
+      pageHead("Project", esc(pr.name), "", (canWrite() ? '<label class="sr" for="pstatus">Project status</label><select id="pstatus" class="status-sel" data-pstatus="' + pr.id + '" data-fk="pstatus">' +
+          ["Active", "Paused", "Closed"].map(function (o) { return "<option" + ((pr.status || "Active") === o ? " selected" : "") + ">" + o + "</option>"; }).join("") + "</select>" :
+          '<span class="pill ' + (pr.status === "Active" ? "good" : "quiet") + '">' + esc(pr.status || "Active") + "</span>") +
         (tab !== "evidence" ? '<button class="btn alt" type="button" data-act="drawer" data-target="dr-evidence" data-needs-write>' + icon("plus") + "File a record</button>" : "")) +
       flashHtml() + tabs + '<div class="ptab-body" role="tabpanel">' + body + "</div>" +
       (tab !== "evidence" ? drawerHtml("dr-evidence", "File a record", evidenceForm(pr.id)) : "") +
@@ -594,6 +693,7 @@
   /* ---------- getting started (shows until the basics are done) ---------- */
   function setupHtml() {
     var steps = [
+      ["Complete the company profile", profileDone().pct === 100, "company", "Business number, province and contacts for your binder."],
       ["Set your year end", !!state.yearEnd, "deadlines", "All deadlines are worked out from it."],
       ["Add your first project", state.projects.length > 0, "projects", "One per technical problem you are working on."],
       ["Add your team", state.people.length > 1, MODE === "live" ? "team" : "time", "Everyone who works on R&D, so their hours count."],
@@ -776,7 +876,7 @@
     var rc = recordCounts(), g = gaps(), c = completion();
     return [
       YEAR + " SR&ED Binder" + (MODE === "demo" ? " (sample)" : ""),
-      ORG_NAME,
+      (company().legal_name || ORG_NAME) + (company().business_number ? " · BN " + company().business_number : ""),
       "Prepared " + TODAY,
       "",
       "00 Cover and index: " + plural(g.length, "open gap", "open gaps") + " listed",
@@ -816,8 +916,9 @@
       '<div class="stack-sm"><p class="eyebrow">Export</p><h1 id="h-main"><span class="soft">The ' + YEAR + ' binder.</span> ' + (g.length ? plural(g.length, "gap", "gaps") + " still open." : "Ready to hand over.") + "</h1>" +
       '<p class="lead">One folder per tax year, in the order a reviewer reads it. Open gaps go on the cover, where everyone can see them.</p></div>' +
       flashHtml() +
-      '<div class="binder"><div class="spine"><h2>' + YEAR + ' SR&amp;ED Binder</h2><span class="mono small">' + esc(ORG_NAME) + ' &middot; ' + longDate(yearStart()) + " to " + longDate(yearEnd()) + '</span></div><ol>' + items + "</ol></div>" +
-      '<div class="row"><button class="btn" type="button" data-act="generate" data-fk="generate">Build the binder</button><button class="btn alt" type="button" data-act="copy" data-fk="copy">Copy index text</button>' + copyMsg + "</div>" +
+      '<div class="binder"><div class="spine"><h2>' + YEAR + ' SR&amp;ED Binder</h2><span class="mono small">' + esc(company().legal_name || ORG_NAME) + (company().business_number ? " &middot; BN " + esc(company().business_number) : "") + ' &middot; ' + longDate(yearStart()) + " to " + longDate(yearEnd()) + '</span></div><ol>' + items + "</ol></div>" +
+      (GUIDE && !GUIDE.allows("export") ? GUIDE.upsell("Build and hand over the binder", "Your records are all here and stay safe. Building the indexed binder for your advisor or CRA is part of Growth and Scale.") :
+      '<div class="row"><button class="btn" type="button" data-act="generate" data-fk="generate">Build the binder</button><button class="btn alt" type="button" data-act="copy" data-fk="copy">Copy index text</button>' + copyMsg + "</div>") +
       gen +
       '<pre class="index" aria-label="Binder index text">' + esc(indexText()) + "</pre>" +
       '<p class="hint">The portal organizes your records. Your accountant or SR&amp;ED advisor decides what to claim.</p>' +
@@ -825,7 +926,7 @@
   }
 
   var VIEWS = {overview:vOverview, projects:vProjects, evidence:vEvidence, time:vTime, funding:vFunding, gaps:vGaps, export:vExport,
-    team:function () { return vTeam(); }, companies:function () { return vCompanies(); }, project: vProject};
+    team:function () { return vTeam(); }, companies:function () { return vCompanies(); }, project: vProject, company: function () { return vCompany(); }};
 
   /* ---------- plan and learn sections (assets/guide.js) ---------- */
   var GUIDE = window.SRED_GUIDE ? window.SRED_GUIDE({
@@ -837,6 +938,7 @@
     get orgId() { return orgId; },
     get billing() { return billing; },
     get role() { return ROLE; },
+    company: function () { return state && state.company; },
     fetchGuides: function () { return sb ? sb.from("funding_guides").select("slug,title,kind,body,checked_on").order("sort") : Promise.resolve({data: []}); },
     get canManage() { return canManage(); },
     stripe: (window.SRED_CONFIG || {}).stripe || {}
@@ -844,7 +946,7 @@
   var CLAIM = window.SRED_CLAIM ? window.SRED_CLAIM({
     esc: esc, icon: icon, money: money, longDate: longDate, plural: plural, days: days, addDays: addDays, addMonths: addMonthsCRA,
     get today() { return TODAY; }, get state() { return state; }, get mode() { return MODE; },
-    get canWrite() { return canWrite(); }, get canManage() { return canManage(); }, get orgName() { return ORG_NAME; },
+    get canWrite() { return canWrite(); }, get canManage() { return canManage(); }, get orgName() { return companyName(); },
     yearEnd: yearEnd, yearStart: yearStart, claimDue: claimDue, completion: completion, fields: FIELDS, lastEvidence: lastEvidence,
     setYearEnd: function (iso, sbd) { state.yearEnd = iso; state.sbd = sbd; YEAR = iso.slice(0, 4); persist.yearEnd(iso, sbd); render(); },
     setCheck: function (item, v, ye) { if (item === "filed") state.filed[ye] = v; else state.checklist[item] = v; persist.check(item, v, ye); },
@@ -865,6 +967,9 @@
     GUIDE.nav.forEach(function (n) { NAV.push(n); ROUTES.push(n[0]); });
     Object.keys(GUIDE.icons).forEach(function (k) { NAV_ICON[k] = GUIDE.icons[k]; });
     Object.keys(GUIDE.groups).forEach(function (k) { NAV_GROUP[k] = GUIDE.groups[k]; });
+    var pAt = NAV.findIndex(function (n) { return n[0] === "plans"; });
+    NAV.splice(pAt < 0 ? NAV.length : pAt, 0, ["company", "16", "Company"]); ROUTES.push("company");
+    NAV_ICON.company = "buildings"; NAV_GROUP.company = "Account"; delete NAV_GROUP.plans;
     Object.keys(GUIDE.views).forEach(function (k) { VIEWS[k] = GUIDE.views[k]; });
   }
 
@@ -892,14 +997,14 @@
     if (typeof updateBell === "function") updateBell();
     var gd = document.getElementById("greetDate"), gt = document.getElementById("greetTitle"), uc = document.getElementById("userChip");
     if (gd) gd.textContent = new Date(TODAY + "T12:00:00").toLocaleDateString("en-CA", {weekday: "long", day: "numeric", month: "long", year: "numeric"});
-    if (gt) gt.innerHTML = 'Welcome back<span class="gt-org"> to ' + esc(ORG_NAME.replace(" (sample)", "")) + "</span>";
+    if (gt) gt.innerHTML = 'Welcome back<span class="gt-org"> to ' + esc(companyName()) + "</span>";
     if (uc) {
       var uname = MODE === "live" && me ? (me.full_name || me.email || "") : "Demo account";
       var urole = {kv: "KV admin", admin: "Company admin", staff: "Staff", advisor: "Advisor"}[ROLE] || "";
       uc.innerHTML = '<span class="avatar" aria-hidden="true">' + esc((uname || "?").charAt(0).toUpperCase()) + '</span><span class="uc-t"><b>' + esc(uname) + "</b><span>" + esc(urole) + "</span></span>";
     }
     var so = document.getElementById("sideOrg");
-    if (so && MODE === "demo") so.innerHTML = '<p class="org-name">' + esc(ORG_NAME) + '</p><p class="org-sub">Tax year ' + YEAR + "</p>";
+    if (so && (MODE === "demo" || (myOrgs.length <= 1 && ROLE !== "kv"))) so.innerHTML = orgCardHtml();
   }
 
   function render(moveFocus) {
@@ -1078,6 +1183,15 @@
     }
   });
 
+  document.addEventListener("change", function (e) {
+    var t = e.target; if (!t.matches || !t.matches("select[data-pstatus]")) return;
+    var pr = state.projects.find(function (p) { return p.id === t.getAttribute("data-pstatus"); }); if (!pr) return;
+    if (t.value === "Active" && (pr.status || "Active") !== "Active" && !canAddProject()) { t.value = pr.status; state.flash = {bad: true, text: projectLimitMsg()}; render(); return; }
+    pr.status = t.value; persist.projectField(pr.id, "status", t.value);
+    state.flash = {text: pr.name + " is now " + t.value.toLowerCase() + "." + (t.value === "Closed" ? " Its records stay in the binder." : "")};
+    render();
+  });
+
   document.addEventListener("toggle", function (e) {
     var d = e.target;
     if (d && d.matches && d.matches("details[data-det]")) state.open[d.getAttribute("data-det")] = d.open;
@@ -1110,7 +1224,30 @@
       render();
       return;
     }
+    if (form.id === "f-co") {
+      if (!canManage()) return;
+      var c = company(), patch = {}, bad = null;
+      CO_FIELDS.forEach(function (f) {
+        var el = form.elements[f[0]]; if (!el) return;
+        var v = el.value.trim();
+        if (f[4] === "yesno") v = v === "yes" ? true : v === "no" ? false : null;
+        else if (f[4] === "number") v = v === "" ? null : Math.max(0, parseInt(v, 10) || 0);
+        else if (f[0] === "business_number") v = v.replace(/\s+/g, "").toUpperCase();
+        else if (f[0] === "postal_code") v = v.toUpperCase().replace(/^([A-Z]\d[A-Z]) ?(\d[A-Z]\d)$/, "$1 $2");
+        var err = document.getElementById("co-" + f[0] + "-err");
+        if (!coValid(f[0], v)) { if (err) err.textContent = CO_ERR[f[0]] || "Check this field."; if (!bad) bad = el; }
+        else if (err) err.textContent = "";
+        patch[f[0]] = v === "" ? null : v;
+      });
+      if (bad) { bad.focus(); toast("Fix the highlighted fields, then save.", true); return; }
+      Object.keys(patch).forEach(function (k) { c[k] = patch[k]; });
+      if (MODE === "live" && patch.legal_name) { patch.name = patch.operating_name || patch.legal_name; }
+      persist.company(patch);
+      state.flash = {text: "Profile saved for " + companyName() + "."};
+      render(); return;
+    }
     if (form.id === "f-project") {
+      if (!canAddProject()) { state.flash = {bad: true, text: projectLimitMsg()}; render(); return; }
       var name = form.elements.name.value.trim();
       if (!name) {
         state.flash = {bad: true, text: "Give the project a name, then add it."};
@@ -1398,6 +1535,10 @@
       sb.from("funding").insert({id: f.id, org_id: orgId, program: f.program, amount: f.amount, period: f.period})
         .then(function (r) { check(r, "the funding entry"); });
     },
+    company: function (patch) {
+      if (MODE !== "live" || !canManage()) return;
+      sb.from("organizations").update(patch).eq("id", orgId).then(function (r) { if (check(r, "the profile")) toast("Profile saved."); });
+    },
     yearEnd: function (iso, sbd) {
       if (MODE !== "live" || !canManage()) return;
       later("ye", function () { sb.from("organizations").update({fiscal_year_end: iso, ccpc_sbd: sbd}).eq("id", orgId).then(function (r) { check(r, "the year end"); }); });
@@ -1522,6 +1663,9 @@
     try {
       var ye = await sb.from("organizations").select("fiscal_year_end, ccpc_sbd").eq("id", orgId).maybeSingle();
       if (!ye.error && ye.data) { fresh.yearEnd = ye.data.fiscal_year_end; fresh.sbd = ye.data.ccpc_sbd !== false; }
+      // Company profile columns exist once supabase/company.sql has run.
+      var cp = await sb.from("organizations").select(CO_FIELDS.map(function (f) { return f[0]; }).join(",")).eq("id", orgId).maybeSingle();
+      fresh.company = !cp.error && cp.data ? cp.data : {legal_name: ORG_NAME};
       var cl = await sb.from("claim_checklist").select("year_end, item, status").eq("org_id", orgId);
       if (!cl.error) (cl.data || []).forEach(function (r) {
         if (r.item === "filed") fresh.filed[r.year_end] = r.status;
@@ -1549,13 +1693,18 @@
     state = fresh;
   }
 
+  function orgCardHtml() {
+    var L = GUIDE ? GUIDE.limits() : null, c = company();
+    return '<a class="org-card" href="#company" title="Company profile"><span class="org-logo" aria-hidden="true">' + esc(initials(companyName())) + '</span><span class="org-txt"><span class="org-name">' + esc(companyName()) + "</span>" +
+      '<span class="org-sub">' + (L ? '<span class="tag sm">' + L.label + "</span> " : "") + "Tax year " + YEAR + (c.province ? " · " + c.province : "") + "</span></span></a>";
+  }
   function renderHeader() {
     var sw = myOrgs.length > 1 ?
       '<label class="sr" for="org-switch">Company</label><select id="org-switch" class="org-switch">' +
         myOrgs.map(function (o) { return '<option value="' + o.id + '"' + (o.id === orgId ? " selected" : "") + ">" + esc(o.name) + "</option>"; }).join("") + "</select>" :
-      '<p class="org-name">' + esc(ORG_NAME) + "</p>";
+      "";
     var roleName = {kv: "KV admin", admin: "Company admin", staff: "Staff", advisor: "Advisor"}[ROLE] || ROLE;
-    document.getElementById("sideOrg").innerHTML = sw + '<p class="org-sub">Tax year ' + YEAR + "</p>";
+    document.getElementById("sideOrg").innerHTML = orgCardHtml() + sw;
     meta.innerHTML = userBlock(me.email, roleName);
   }
 
@@ -1667,11 +1816,17 @@
       '<div class="stack-sm"><p class="eyebrow">Companies</p><h1 id="h-main"><span class="soft">' + plural(myOrgs.length, "client company", "client companies") + ".</span> One binder each.</h1>" +
       '<p class="lead">Each company gets its own records, team and binder. Only KV admins see this list.</p></div>' +
       '<div class="grid2"><div class="card stack-sm"><h2>All companies</h2><ul class="records">' + list + "</ul></div>" +
-      '<form class="card form" id="f-company" novalidate><h2>Add a company</h2>' +
-        '<div class="field"><label for="co-name">Legal name</label><input id="co-name" name="name" placeholder="For example: Prairie Sensor Works Inc."></div>' +
-        '<div class="field"><label for="co-year">Tax year</label><input id="co-year" name="year" type="number" min="2000" max="2100" value="' + new Date().getFullYear() + '"></div>' +
-        '<div class="field"><label for="co-admin">Company admin email (optional)</label><input id="co-admin" name="admin" type="email" placeholder="owner@company.ca"></div>' +
-        '<div class="row"><button class="btn" type="submit">Add company</button></div></form></div></section>';
+      '<form class="card form stack-sm" id="f-company" novalidate><h2>Onboard a company</h2><p class="hint">Creates the company, sets its membership and invites its admin. Everything they add stays inside this company.</p><div class="fields">' +
+        '<div class="field wide"><label for="nc-legal">Legal name</label><input id="nc-legal" name="legal" placeholder="For example: Prairie Sensor Works Inc."></div>' +
+        '<div class="field"><label for="nc-op">Operating name (optional)</label><input id="nc-op" name="op" placeholder="Prairie Sensor Works"></div>' +
+        '<div class="field"><label for="nc-bn">CRA business number (optional)</label><input id="nc-bn" name="bn" placeholder="123456789RC0001"></div>' +
+        '<div class="field"><label for="nc-prov">Province</label><select id="nc-prov" name="prov">' + PROVINCE_LIST.map(function (p) { return '<option value="' + p[0] + '"' + (p[0] === "MB" ? " selected" : "") + ">" + p[1] + "</option>"; }).join("") + "</select></div>" +
+        '<div class="field"><label for="nc-ye">Tax year end</label><input id="nc-ye" name="ye" type="date" value="' + new Date().getFullYear() + '-12-31"></div>' +
+        '<div class="field"><label for="nc-plan">Membership</label><select id="nc-plan" name="plan"><option value="starter">Starter</option><option value="growth" selected>Growth</option><option value="scale">Scale</option><option value="partner">Partner (advisor firm)</option></select></div>' +
+        '<div class="field"><label for="nc-status">Billing</label><select id="nc-status" name="status"><option value="trialing">14-day free trial</option><option value="active">Active (paid outside Stripe)</option></select></div>' +
+        '<div class="field"><label for="nc-cname">Main contact name</label><input id="nc-cname" name="cname" placeholder="Owner or controller"></div>' +
+        '<div class="field"><label for="nc-admin">Company admin email</label><input id="nc-admin" name="admin" type="email" placeholder="owner@company.ca"><p class="hint">They get admin access when they sign in with this email.</p></div>' +
+      '</div><div class="row"><button class="btn" type="submit">Onboard company</button></div></form></div></section>';
   }
 
   /* ---------- live-only events ---------- */
@@ -1717,7 +1872,11 @@
     if (id === "f-invite") {
       var em = f.elements.email.value.trim().toLowerCase();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { toast("Enter a full email address.", true); return; }
-      var ri = await sb.from("invitations").insert({org_id: orgId, email: em, role: f.elements.role.value, invited_by: me.id});
+      var Lt = GUIDE ? GUIDE.limits() : null, roleV = f.elements.role.value;
+      if (Lt && isFinite(Lt.people) && roleV !== "advisor" && teamData && (teamData.members.filter(function (m) { return m.role !== "advisor"; }).length + teamData.invites.filter(function (i) { return i.role !== "advisor"; }).length) >= Lt.people) {
+        toast(Lt.label + " includes " + Lt.people + " people. Upgrade to add more.", true); return;
+      }
+      var ri = await sb.from("invitations").insert({org_id: orgId, email: em, role: roleV, invited_by: me.id});
       if (check(ri, "the invite")) toast("Invited " + em + ". Send them the portal link.");
       loadTeam(); return;
     }
@@ -1728,12 +1887,22 @@
       return;
     }
     if (id === "f-company") {
-      var cn = f.elements.name.value.trim(); if (!cn) { toast("Add the company name.", true); return; }
-      var newId = uuid();
-      var rc = await sb.from("organizations").insert({id: newId, name: cn, tax_year: Number(f.elements.year.value) || new Date().getFullYear()});
-      if (!check(rc, "the company")) return;
-      await sb.from("financial_records").insert(DEFAULT_RECORDS.map(function (l) { return {org_id: newId, label: l, status: "missing"}; }));
+      var cn = f.elements.legal.value.trim(); if (!cn) { toast("Add the company's legal name.", true); return; }
+      var opn = f.elements.op.value.trim(), bn = f.elements.bn.value.replace(/\s+/g, "").toUpperCase(), ye = f.elements.ye.value;
       var adm = f.elements.admin.value.trim().toLowerCase();
+      if (bn && !/^\d{9}(RC\d{4})?$/.test(bn)) { toast("Business number: 9 digits, optionally followed by RC and 4 digits.", true); return; }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ye)) { toast("Choose the tax year end.", true); return; }
+      if (adm && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(adm)) { toast("Enter the admin's full email address.", true); return; }
+      var newId = uuid();
+      var full = {id: newId, name: opn || cn, tax_year: Number(ye.slice(0, 4)), fiscal_year_end: ye, legal_name: cn, operating_name: opn || null,
+        business_number: bn || null, province: f.elements.prov.value, contact_name: f.elements.cname.value.trim() || null, contact_email: adm || null};
+      var rc = await sb.from("organizations").insert(full);
+      if (rc.error && /column/i.test(rc.error.message || "")) rc = await sb.from("organizations").insert({id: newId, name: opn || cn, tax_year: Number(ye.slice(0, 4))});
+      if (!check(rc, "the company")) return;
+      var plan = f.elements.plan.value, st = f.elements.status.value;
+      var rb = await sb.from("billing").upsert({org_id: newId, plan: plan, status: st, trial_ends_at: st === "trialing" ? new Date(Date.now() + 14 * 864e5).toISOString() : null}, {onConflict: "org_id"});
+      if (rb.error) toast("Company added, but the membership was not set: run supabase/company.sql, then set it again.", true);
+      await sb.from("financial_records").insert(DEFAULT_RECORDS.map(function (l) { return {org_id: newId, label: l, status: "missing"}; }));
       if (adm) await sb.from("invitations").insert({org_id: newId, email: adm, role: "admin", invited_by: me.id});
       toast("Added " + cn + ".");
       await loadMe({id: me.id, email: me.email});
@@ -1954,7 +2123,7 @@
     var s = wiz.step, ye = wiz.ye || yearEnd(), dots = [0, 1, 2, 3, 4].map(function (i) { return '<span class="wz-dot' + (i === s ? " on" : i < s ? " done" : "") + '"></span>'; }).join("");
     var body, next = "Continue", back = s > 0 && s < 4;
     if (s === 0) {
-      body = '<div class="wz-hero">' + icon("rocket-launch") + "</div><h2 id=\"wz-t\">Let’s set up " + esc(ORG_NAME.replace(" (sample)", "")) + "</h2>" +
+      body = '<div class="wz-hero">' + icon("rocket-launch") + "</div><h2 id=\"wz-t\">Let’s set up " + esc(companyName()) + "</h2>" +
         '<p class="lead">Three short steps, about two minutes. You can change everything later.</p>' +
         '<ol class="wz-list"><li>Your tax year end, so every deadline is right</li><li>Your first R&amp;D project</li><li>Who works on R&amp;D</li></ol>';
       next = "Start";
@@ -2006,6 +2175,7 @@
     if (s === 2) {
       wiz.name = (document.getElementById("wz-name") || {}).value.trim(); wiz.goal = (document.getElementById("wz-goal") || {}).value.trim();
       if (!wiz.name && !state.projects.length) { toast("Give your first project a name, or skip for now.", true); return; }
+      if (wiz.name && !wiz.pid && !canAddProject()) { toast(projectLimitMsg(), true); return; }
       if (wiz.name && !wiz.pid) {
         var np = {id: uuid(), name: wiz.name, status: "Active", objective: wiz.goal, uncertainty: "", hypothesis: "", results: ""};
         state.projects.push(np); persist.addProject(np);

@@ -16,6 +16,7 @@ Supabase's free tier is enough to start.
 2. Paste all of `supabase/schema.sql` and click **Run**.
 3. It should finish with "Success. No rows returned".
 4. Then open a new query, paste all of `supabase/deadlines.sql` and click **Run**. It adds each company’s year end and the claim-strength checklist.
+5. Then run `supabase/company.sql`. It adds the company profile and enforces each membership’s limits (projects and people).
 
 ## 3. Turn on email sign-in
 1. **Authentication** > **Sign In / Providers** > **Email**: make sure it is enabled.

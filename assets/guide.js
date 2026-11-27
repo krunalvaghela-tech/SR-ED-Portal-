@@ -219,9 +219,16 @@
     }
 
     /* ---------- claimable costs and estimator ---------- */
+    function provCode(p) {
+      if (!p) return "MB";
+      if (["NS", "NB", "PE", "NL"].indexOf(p) >= 0) return "AT";
+      if (["YT", "NT", "NU"].indexOf(p) >= 0) return "NA";
+      return PROVINCES.some(function (x) { return x[0] === p; }) ? p : "MB";
+    }
     function estDefaults() {
       return {labour: 420000, materials: 38000, overheadMode: "proxy", overhead: 0, contracts: 60000, third: 25000, capital: 0,
-              grants: h.fundingTotal(), prov: "MB", ccpc: gs.elig.ccpc === "no" ? "no" : "yes"};
+              grants: h.fundingTotal(), prov: provCode((h.company() || {}).province),
+              ccpc: (h.company() || {}).ccpc === false || gs.elig.ccpc === "no" ? "no" : "yes"};
     }
     function calc(s) {
       var n = function (k) { var v = Number(s[k]); return isFinite(v) && v > 0 ? v : 0; };
@@ -279,6 +286,7 @@
         head("What you can claim", '<span class="soft">Six kinds of cost.</span> Here is what each one is worth.',
           "SR&amp;ED pays back part of what you spend on eligible work: wages, materials, overhead, contracts, research payments and, again, equipment. Each has its own rule.") +
         '<div class="cats">' + cats + "</div>" +
+        (!allows("estimator") ? upsell("Estimate your credit", "See what your claim could be worth, with federal and provincial rates and grants taken off. The credit estimator is part of Growth and Scale.") :
         '<div class="stack-sm"><h2>Estimate your credit</h2><p class="lead">Put in this tax year’s SR&amp;ED spending. The numbers update as you type and stay on this device only.</p></div>' +
         '<div class="est">' +
           '<div class="card stack-sm est-in"><div class="fields">' +
@@ -297,7 +305,7 @@
             '<div class="field"><label for="est-ccpc">Company type</label><select id="est-ccpc" data-g="est" data-k="ccpc" data-fk="est-ccpc"><option value="yes"' + (s.ccpc === "yes" ? " selected" : "") + '>CCPC (35% on first $6M)</option><option value="no"' + (s.ccpc === "no" ? " selected" : "") + ">Other corporation (15%)</option></select></div>" +
           '</div><div class="row"><button class="btn alt small" type="button" data-g="est-reset" data-fk="g-est-reset">Reset to sample numbers</button></div></div>' +
           '<div id="est-out">' + estOut(s) + "</div>" +
-        "</div>" +
+        "</div>") +
         '<div class="card stack-sm"><h2>Rates across Canada</h2><div class="table-wrap"><table style="min-width:520px"><thead><tr><th>Where</th><th>Credit rate</th><th>Refundable?</th></tr></thead><tbody>' +
           "<tr><td>Federal</td><td>Up to 35% (CCPC) / 15% (other corporations)</td><td>Refundable for eligible CCPCs</td></tr>" +
           "<tr><td>British Columbia</td><td>10%</td><td>Generally non-refundable</td></tr>" +
@@ -315,13 +323,29 @@
     var SAMPLE_GUIDE = {"slug": "clean_tech", "title": "Clean Technology ITC", "kind": "Refundable federal tax credit", "body": {"summary": "Up to 30% back on new clean technology equipment, claimed on your T2 return. No application to a program officer: your accountant claims it.", "eligibility": ["The company is a taxable Canadian corporation.", "The equipment is new: not used, or acquired for use, by anyone before you.", "It was acquired and became available for use between March 28, 2023 and December 31, 2034.", "It is used in Canada.", "It is a listed clean technology, such as Class 56 off-road electric or hydrogen vehicles (forklifts, lifts, utility vehicles, drones, autonomous robots), solar or wind generation, energy storage or low-carbon heat equipment.", "If the equipment is installed on a work site after November 28, 2023, you can meet the labour requirements (prevailing wages and 10% apprentice hours). If not, the rate drops by 10 points. Off-road zero-emission vehicles and low-carbon heat equipment are exempt."], "documents": ["Invoices and proof of payment for each item", "Delivery, commissioning or in-service records showing the date it became available for use", "Spec sheets showing what the equipment is, so your accountant can confirm its class", "A dealer or supplier statement that it was new", "Where it is used in Canada", "For installed projects: payroll records for covered workers and apprentice hours", "Any grant or other assistance received for the same equipment"], "steps": ["List every qualifying purchase since March 28, 2023, with the date it went into use and its cost. Upload the invoices to Evidence.", "Ask your accountant to confirm each item's capital cost allowance class (for example Class 56, 43.1 or 43.2).", "Subtract any grants or assistance for the same equipment. Log them in Finance and funding.", "If the labour requirements apply, collect wage and apprentice records and decide whether to attest to them. The attestation is made every year.", "Your accountant files Schedule 75 (T2SCH75) with the T2 return and carries the credit to line 155 of Schedule 31.", "For earlier years, CRA accepts late claims until the later of December 31, 2026 or one year after the return's due date. After that, the credit for those years is gone.", "Keep every record for at least six years. CRA may audit and ask for invoices and labour records."], "timing": "The credit is refunded when CRA assesses the T2. The rate is 30% to the end of 2033 and 15% in 2034.", "sred": "Equipment used for SR&ED may also qualify for SR&ED as capital. Your accountant decides which credit gives more; the same cost cannot be counted twice.", "contact": "CRA Clean Economy ITC pages and specialist line", "link": "https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/corporations/business-tax-credits/clean-economy-itc/clean-technology-itc.html"}};
     var GUIDE_TITLES = ["Clean Technology ITC", "Regional Tariff Response Initiative (RTRI)", "NRC IRAP", "Mitacs Accelerate"];
     var guides = null, guidesLoading = false;
-    function fundingAccess() {
-      if (h.mode === "live" && h.role === "kv") return true;
+    /* ---------- what each membership includes (one place, used by every page) ---------- */
+    var INF = Infinity;
+    var LIMITS = {
+      starter: {label: "Starter", people: 5,   projects: 3,   storageGB: 10,   estimator: false, export: false, funding: false, training: false, companies: 1},
+      growth:  {label: "Growth",  people: 25,  projects: INF, storageGB: 100,  estimator: true,  export: true,  funding: true,  training: true,  companies: 1},
+      scale:   {label: "Scale",   people: INF, projects: INF, storageGB: 1000, estimator: true,  export: true,  funding: true,  training: true,  companies: 3},
+      partner: {label: "Partner", people: INF, projects: INF, storageGB: 1000, estimator: true,  export: true,  funding: true,  training: true,  companies: INF}
+    };
+    function planId() {
+      if (h.mode === "live" && h.role === "kv") return "partner";
       var st = planState();
-      if (h.mode === "live" && !h.billing) return false;
-      return ["growth", "scale", "partner"].indexOf(st.plan) >= 0 && ["trialing", "active", "past_due"].indexOf(st.status) >= 0 &&
-        !(st.status === "trialing" && st.trialLeft === 0);
+      if (!st.plan) return "growth";                       // billing not set up yet: full trial access
+      if (["canceled", "unpaid", "incomplete_expired", "paused"].indexOf(st.status) >= 0) return "starter";
+      if (st.status === "trialing" && st.trialLeft === 0) return "starter";
+      return LIMITS[st.plan] ? st.plan : "growth";
     }
+    function limits() { return LIMITS[planId()]; }
+    function allows(f) { return !!limits()[f]; }
+    function upsell(title, text) {
+      return '<div class="card lock-card stack-sm"><div class="row between"><h2>' + title + "</h2>" + icon("lock-simple", "lock-big") + "</div>" +
+        "<p>" + text + '</p><div class="row"><a class="btn" href="#plans">See Growth and Scale</a></div></div>';
+    }
+    function fundingAccess() { return allows("funding"); }
     function loadGuides() {
       if (guides || guidesLoading || h.mode !== "live") return;
       guidesLoading = true;
@@ -459,7 +483,7 @@
     /* ---------- membership ---------- */
     var PLANS = [
       {id: "starter", t: "Starter", m: 79, y: 790, who: "A small team with its first SR&ED project.",
-       f: ["1 company, up to 5 people", "3 active projects", "Evidence locker, 10 GB", "Weekly time and gap alerts", "Eligibility check, SR&ED guide and help answers"], no: ["Other funding programs and application guides", "Live training and onboarding"]},
+       f: ["1 company, up to 5 people", "3 active projects", "Evidence locker, 10 GB", "Weekly time and gap alerts", "Eligibility check, SR&ED guide and help answers"], no: ["Credit estimator and binder export", "Other funding programs and application guides", "Live training and onboarding"]},
       {id: "growth", t: "Growth", m: 199, y: 1990, best: true, who: "Companies claiming every year.",
        f: ["Up to 25 people", "Unlimited projects", "Evidence locker, 100 GB", "Other funding: eligibility and how to apply", "Onboarding session and monthly SR&ED training", "Credit estimator and binder export", "1 free advisor seat (view only)", "Email support"]},
       {id: "scale", t: "Scale", m: 449, y: 4490, who: "Larger R&D teams and groups of companies.",
@@ -607,7 +631,8 @@
       groups: {eligibility: "Plan and learn", plans: "Account"},
       views: {eligibility: vEligibility, claimable: vClaimable, programs: vPrograms, learn: vLearn, plans: vPlans},
       overviewCard: overviewCard,
-      estimate: function () { return calc(gs.est || estDefaults()).total; },
+      estimate: function () { return allows("estimator") ? calc(gs.est || estDefaults()).total : null; },
+      planId: planId, limits: limits, allows: allows, upsell: upsell, LIMITS: LIMITS,
       locked: function (r) { return r === "programs" && !fundingAccess(); },
       paid: function () { return fundingAccess(); }
     };

@@ -922,3 +922,21 @@ a.ptab{text-decoration:none}
 
 .ov .glance{min-width:520px}.ov .glance td{vertical-align:top}
 @media (max-width:760px){.gt-org{display:none}.page-actions{width:100%}.page-actions .btn{flex:1 1 auto}}
+
+/* ---------- company card, profile form, plan usage ---------- */
+.side-org{padding:0;border:0;background:none}
+.org-card{display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--bg);color:var(--ink);text-decoration:none;transition:border-color .3s var(--ease)}
+.org-card:hover{border-color:var(--ink)}
+.org-logo{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--ink);color:var(--on-ink);font:700 14px var(--font)}
+.org-txt{display:grid;min-width:0}
+.org-card .org-name{font-weight:600;font-size:15px;line-height:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.org-card .org-sub{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap}
+.tag.sm{padding:0 8px;font-size:11px;line-height:16px}
+.side-org .org-switch{margin-top:8px}
+.req{font:600 11px var(--font);color:var(--muted);border:1px solid var(--line-strong);border-radius:99px;padding:0 6px;margin-left:6px;vertical-align:2px}
+.field-err{margin:4px 0 0;font-size:14px;font-weight:600;color:var(--ink)}
+.field-err:empty{display:none}
+.field-err:not(:empty)::before{content:"! ";font-weight:800}
+.pb-t.full span{background:var(--ink)}
+#f-co .card h2{margin-bottom:4px}
+.status-sel{width:auto;min-height:44px;border-radius:12px;padding:8px 36px 8px 14px;font-weight:600;border-width:1px}
