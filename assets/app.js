@@ -218,7 +218,7 @@
             "Last record " + last + ", " + d + " days ago. Your alert level is " + state.threshold + " days."});
       }
       if (!String(pr.results || "").trim()) {
-        out.push({id:"res-" + pr.id, sev:"med", go:"projects", label:"Open project", open: pr.id,
+        out.push({id:"res-" + pr.id, sev:"med", go:"project/" + pr.id, label:"Open project",
           title: pr.name + ": results not written up",
           detail: "The project sheet has no results yet. Add dates and numbers while they are fresh."});
       }
@@ -322,6 +322,7 @@
         '<div class="row ov-cta">' + cta + '<a class="btn alt" href="#evidence">File a record</a></div>' +
       "</div>" +
       flashHtml() +
+      setupHtml() +
       kpis +
       '<div class="dash-row">' + readinessHtml() + timelineHtml() + "</div>" +
       '<div class="grid2 ov-2">' +
@@ -388,7 +389,7 @@
       var dots = FIELDS.filter(function (f) { return f.limit; }).map(function (f) {
         return '<span class="ldot' + (String(pr[f.key] || "").trim() ? " on" : "") + '" title="' + f.tag + '"></span>';
       }).join("");
-      return '<tr data-cursor="Open"><td><a class="row-link" href="#projects" data-open="' + pr.id + '">' + icon("flask") + esc(pr.name) + "</a></td>" +
+      return '<tr data-cursor="Open"><td><a class="row-link" href="#project/' + pr.id + '">' + icon("flask") + esc(pr.name) + "</a></td>" +
         '<td><span class="ldots" aria-label="' + lines + ' of 3 T661 lines written">' + dots + "</span> " + lines + "/3</td>" +
         '<td class="r num">' + n + '</td><td class="r num">' + fmt(hrs) + "</td><td>" + (last ? '<span class="stamp">' + last + "</span>" : '<span class="muted">None yet</span>') + "</td></tr>";
     }).join("");
@@ -396,32 +397,213 @@
       '<div class="table-wrap"><table class="glance"><thead><tr><th>Project</th><th>T661 lines</th><th class="r">Records</th><th class="r">Hours this week</th><th>Last record</th></tr></thead><tbody>' + rows + "</tbody></table></div></div>";
   }
 
-  function vProjects() {
-    var cards = state.projects.map(function (pr) {
-      var n = state.evidence.filter(function (e) { return e.project === pr.id; }).length;
-      var last = lastEvidence(pr.id), a = answered(pr);
-      var fields = FIELDS.map(function (f) {
-        var id = "pf-" + pr.id + "-" + f.key;
-        var w = words(pr[f.key]);
-        return '<div class="field t661"><div class="t661-head"><span class="t661-tag">' + f.tag + "</span>" +
-          (f.limit ? '<span class="wc' + (w > f.limit ? " over" : "") + '" id="wc-' + id + '">' + w + " / " + f.limit + " words</span>" : "") + "</div>" +
-          '<label for="' + id + '">' + esc(f.q) + '</label><textarea id="' + id + '" rows="' + (f.limit > 400 ? 5 : 3) + '" data-pid="' + pr.id + '" data-key="' + f.key + '" data-limit="' + f.limit + '">' + esc(pr[f.key]) + "</textarea></div>";
-      }).join("");
-      return '<details class="card proj" data-det="' + pr.id + '"' + (state.open[pr.id] ? " open" : "") + ">" +
-        "<summary>" + ICON_CHEV + '<span class="sname">' + esc(pr.name) + "</span>" +
-        '<span class="pill ' + (a === 4 ? "good" : "warn") + '">' + a + " of 4 answered</span>" +
-        '<span class="stamp">' + plural(n, "record", "records") + "</span>" +
-        (last ? '<span class="stamp">last ' + last + "</span>" : "") + "</summary>" +
-        '<div class="body">' + fields + "</div></details>";
+  /* ---------- shared pieces: slide-in panels, project fields ---------- */
+  function drawerHtml(id, title, inner) {
+    return '<div class="drawer" id="' + id + '" hidden><div class="drawer-scrim" data-act="drawer-close"></div>' +
+      '<aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="' + id + '-t">' +
+      '<header class="drawer-head"><h2 id="' + id + '-t">' + title + '</h2><button class="icon-btn" type="button" data-act="drawer-close" aria-label="Close panel">' + icon("x-circle") + "</button></header>" +
+      '<div class="drawer-body">' + inner + "</div></aside></div>";
+  }
+  function pageHead(eyebrow, h1, lead, actions) {
+    return '<div class="page-head"><div class="stack-sm"><p class="eyebrow">' + eyebrow + '</p><h1 id="h-main">' + h1 + "</h1>" + (lead ? '<p class="lead">' + lead + "</p>" : "") + "</div>" +
+      (actions ? '<div class="row page-actions">' + actions + "</div>" : "") + "</div>";
+  }
+  function fieldHtml(pr, f) {
+    var id = "pf-" + pr.id + "-" + f.key, w = words(pr[f.key]);
+    return '<div class="field t661"><div class="t661-head"><span class="t661-tag">' + f.tag + "</span>" +
+      (f.limit ? '<span class="wc' + (w > f.limit ? " over" : "") + '" id="wc-' + id + '">' + w + " / " + f.limit + " words</span>" : "") + "</div>" +
+      '<label for="' + id + '">' + esc(f.q) + '</label><textarea id="' + id + '" rows="' + (f.limit > 400 ? 8 : 5) + '" data-pid="' + pr.id + '" data-key="' + f.key + '" data-limit="' + f.limit + '" data-fk="' + id + '">' + esc(pr[f.key]) + "</textarea></div>";
+  }
+  function projectStats(pr) {
+    var recs = state.evidence.filter(function (e) { return e.project === pr.id; });
+    var hrs = state.people.reduce(function (s, p) { return s + (Number((state.hours[p.id] || {})[pr.id]) || 0); }, 0);
+    var lines = FIELDS.filter(function (f) { return f.limit && String(pr[f.key] || "").trim(); }).length;
+    var last = lastEvidence(pr.id);
+    return {recs: recs, hrs: hrs, lines: lines, last: last, age: last ? days(last, TODAY) : null};
+  }
+  function evidenceForm(pid) {
+    return '<form class="form" id="f-evidence" novalidate><div class="fields">' +
+      '<div class="field wide"><label for="ev-title">What is it?</label><input id="ev-title" name="title" placeholder="For example: Chamber test 5 data" data-fk="ev-title"></div>' +
+      '<div class="field wide" id="ev-suggest-row" hidden><p class="hint" id="ev-suggest" aria-live="polite"></p><div><button class="btn small alt" type="button" data-act="use-suggest" data-fk="use-suggest">Use this project</button></div></div>' +
+      '<div class="field"><label for="ev-type">Type</label><select id="ev-type" name="type">' + options(TYPES, "Test data") + "</select></div>" +
+      '<div class="field"><label for="ev-project">Project</label><select id="ev-project" name="project">' + options(state.projects, pid || (state.projects[0] && state.projects[0].id), "id", "name") + "</select></div>" +
+      '<div class="field"><label for="ev-person">Person</label><select id="ev-person" name="person">' + options(state.people, state.people[0] && state.people[0].id, "id", "name") + "</select></div>" +
+      '<div class="field"><label for="ev-source">Source</label><select id="ev-source" name="source">' + options(SOURCES, "Upload") + "</select></div>" +
+      '<div class="field wide"><label for="ev-file">File (optional)</label><input id="ev-file" name="file" type="file"><p class="hint">' + (MODE === "live" ? "Up to 50 MB. Once filed, it can’t be replaced." : "In the demo, only the file name is kept.") + "</p></div>" +
+      "</div>" +
+      '<div class="row"><button class="btn" type="submit" data-fk="ev-add">File it <span class="arr" aria-hidden="true">&rarr;</span></button><span class="hint">Dated ' + TODAY + ". The date can’t be changed later.</span></div></form>";
+  }
+  function evidenceRows(list) {
+    return list.map(function (e) {
+      return '<tr><td data-v="' + e.date + '"><span class="stamp">' + e.date + "</span></td>" +
+        "<td>" + esc(e.title) + (e.file ? (MODE === "live" && e.filePath ? '<br><button class="linkbtn" type="button" data-act="download" data-path="' + esc(e.filePath) + '">' + esc(e.file) + "</button>" : '<br><span class="small muted">' + esc(e.file) + "</span>") : "") + "</td>" +
+        "<td>" + esc(e.type) + "</td><td>" + esc(project(e.project).name) + "</td>" +
+        "<td>" + esc(person(e.person).name) + "</td><td>" + esc(e.source) + "</td>" +
+        '<td><span class="pill quiet">' + ICON_LOCK + "Locked</span></td></tr>";
     }).join("");
+  }
+  function tableTools(id, placeholder, count) {
+    return '<div class="dt-tools"><label class="dt-search"><span class="sr">Search this table</span>' + icon("magnifying-glass") +
+      '<input type="search" data-dt="' + id + '" placeholder="' + placeholder + '" data-fk="dt-' + id + '"></label><span class="hint dt-count" id="' + id + '-count" role="status">' + count + "</span></div>";
+  }
+
+  /* ---------- projects list ---------- */
+  function vProjects() {
+    var rows = state.projects.map(function (pr) {
+      var s = projectStats(pr);
+      var dots = FIELDS.filter(function (f) { return f.limit; }).map(function (f) { return '<span class="ldot' + (String(pr[f.key] || "").trim() ? " on" : "") + '" title="' + f.tag + '"></span>'; }).join("");
+      return '<tr><td data-v="' + esc(pr.name) + '"><a class="row-link" href="#project/' + pr.id + '">' + icon("flask") + esc(pr.name) + "</a></td>" +
+        '<td><span class="pill ' + (pr.status === "Active" ? "good" : "quiet") + '">' + esc(pr.status || "Active") + "</span></td>" +
+        '<td data-v="' + s.lines + '"><span class="ldots" aria-label="' + s.lines + ' of 3 T661 lines written">' + dots + "</span> " + s.lines + "/3</td>" +
+        '<td class="r num" data-v="' + s.recs.length + '">' + s.recs.length + '</td><td class="r num" data-v="' + s.hrs + '">' + fmt(s.hrs) + "</td>" +
+        '<td data-v="' + (s.last || "") + '">' + (s.last ? '<span class="stamp">' + s.last + "</span>" : '<span class="muted">None yet</span>') + "</td></tr>";
+    }).join("");
+    var form = '<form class="form" id="f-project" novalidate>' +
+      '<div class="field"><label for="np-name">Project name</label><input id="np-name" name="name" placeholder="For example: Sensor enclosure heat test" data-fk="np-name"><p class="hint">Use a plain description of the technical goal. You can change it later.</p></div>' +
+      '<div class="row"><button class="btn" type="submit" data-fk="np-add">Add project</button></div></form>';
     return '<section class="stack" aria-labelledby="h-main">' +
-      '<div class="stack-sm"><p class="eyebrow">Projects</p><h1 id="h-main"><span class="soft">' + plural(state.projects.length, "project", "projects") + ".</span> Written the way CRA reads them.</h1>" +
-      '<p class="lead">Three of the four answers line up with the project description on form T661, with the same word limits. Write as the work happens and your advisor starts from real notes, not memory.</p></div>' +
-      flashHtml() + '<div class="stack-sm">' + cards + "</div>" +
-      '<form class="card form" id="f-project" novalidate><h2>Add a project</h2>' +
-      '<div class="field"><label for="np-name">Project name</label><input id="np-name" name="name" placeholder="For example: Sensor enclosure heat test" data-fk="np-name"></div>' +
-      '<div class="row"><button class="btn" type="submit" data-fk="np-add">Add project</button></div></form>' +
+      pageHead("Projects", '<span class="soft">' + plural(state.projects.length, "project", "projects") + ".</span> Written the way CRA reads them.",
+        "Open a project to write its T661 lines, see its records and the hours logged to it.",
+        '<button class="btn alt" type="button" data-act="drawer" data-target="dr-project" data-needs-write>' + icon("plus") + "New project</button>") +
+      flashHtml() +
+      (state.projects.length ?
+        tableTools("t-projects", "Search projects", plural(state.projects.length, "project", "projects")) +
+        '<div class="table-wrap"><table class="glance dt" id="t-projects"><thead><tr><th data-sort="text">Project</th><th data-sort="text">Status</th><th data-sort="num">T661 lines</th><th class="r" data-sort="num">Records</th><th class="r" data-sort="num">Hours this week</th><th data-sort="text">Last record</th></tr></thead><tbody>' + rows + "</tbody></table></div>"
+        : '<div class="card empty stack-sm"><h2>No projects yet.</h2><p class="hint">Add the first project you are working on. The binder starts filling in from there.</p><div class="row"><button class="btn" type="button" data-act="drawer" data-target="dr-project">Add a project</button></div></div>') +
+      drawerHtml("dr-project", "New project", form) +
       "</section>";
+  }
+
+  /* ---------- one project, with tabs ---------- */
+  var curProject = null;
+  var PTABS = [["overview", "Overview"], ["t661", "T661 write-up"], ["evidence", "Evidence"], ["time", "Time"]];
+  function vProject() {
+    var pr = state.projects.find(function (p) { return p.id === curProject; });
+    if (!pr) return '<section class="stack" aria-labelledby="h-main"><div class="card empty stack-sm"><h1 id="h-main">Project not found.</h1><p class="hint">It may have been removed, or the link is from another company.</p><p><a class="btn alt" href="#projects">Back to projects</a></p></div></section>';
+    var s = projectStats(pr), tab = state.ptab || "overview", a = answered(pr);
+    var tabs = '<div class="ptabs" role="tablist" aria-label="Project sections">' + PTABS.map(function (t) {
+      var on = t[0] === tab;
+      return '<button type="button" role="tab" class="ptab' + (on ? " on" : "") + '" aria-selected="' + on + '" data-act="ptab" data-tab="' + t[0] + '" data-fk="ptab-' + t[0] + '">' + t[1] +
+        (t[0] === "evidence" ? ' <span class="ptab-n">' + s.recs.length + "</span>" : t[0] === "t661" ? ' <span class="ptab-n">' + s.lines + "/3</span>" : "") + "</button>";
+    }).join("") + "</div>";
+    var stat = function (l, v, sub) { return '<div class="pstat"><span class="kpi-l">' + l + '</span><span class="pstat-v num">' + v + '</span><span class="kpi-s">' + sub + "</span></div>"; };
+    var body = "";
+    if (tab === "overview") {
+      var next = [];
+      FIELDS.forEach(function (f) { if (f.limit && !String(pr[f.key] || "").trim()) next.push(["Write " + f.tag, "t661"]); });
+      if (s.age === null) next.push(["File the first record for this project", "evidence"]);
+      else if (pr.status === "Active" && s.age > state.threshold) next.push(["No record for " + s.age + " days. File what happened since " + s.last, "evidence"]);
+      if (!s.hrs) next.push(["No hours logged to this project this week", "time"]);
+      var recent = s.recs.slice().sort(function (x, y) { return x.date < y.date ? 1 : -1; }).slice(0, 5).map(function (e) {
+        return '<li><span class="ra-ico">' + icon("files") + '</span><div class="ra-b"><b>' + esc(e.title) + '</b><span class="small muted">' + esc(e.type) + " · " + esc(person(e.person).name) + '</span></div><span class="stamp">' + e.date + "</span></li>";
+      }).join("");
+      body = '<div class="pstats">' +
+          stat("T661 lines", s.lines + "/3", a + " of 4 prompts answered") +
+          stat("Records", String(s.recs.length), s.last ? "Last on " + longDate(s.last) : "None yet") +
+          stat("Hours this week", fmt(s.hrs), "Week of " + longDate(WEEK_OF)) +
+          stat("Freshness", s.age === null ? "–" : s.age + "<small> days</small>", "Since the last record. Alert at " + state.threshold) +
+        "</div>" +
+        '<div class="grid2 ov-2">' +
+          '<div class="card stack-sm">' + fieldHtml(pr, FIELDS[0]) + "</div>" +
+          '<div class="card stack-sm"><h2>What to do next</h2>' + (next.length ? '<ul class="next">' + next.map(function (n) {
+            return '<li><button type="button" class="next-i" data-act="ptab" data-tab="' + n[1] + '">' + icon("arrow-right") + "<span>" + esc(n[0]) + "</span></button></li>"; }).join("") + "</ul>"
+            : '<p class="flash">This project is up to date.</p>') + "</div>" +
+        "</div>" +
+        '<div class="card stack-sm"><div class="row between"><h2>Recent records</h2><button class="linkbtn" type="button" data-act="ptab" data-tab="evidence">All records</button></div><ul class="recent">' + (recent || '<li class="muted">No records yet.</li>') + "</ul></div>";
+    } else if (tab === "t661") {
+      body = '<div class="card stack-sm"><p class="hint">These three answers become the project description on CRA form T661, Part 2, Section B. Write in plain language, with dates and numbers. Your work saves as you type.</p>' +
+        FIELDS.filter(function (f) { return f.limit; }).map(function (f) { return fieldHtml(pr, f); }).join("") + "</div>";
+    } else if (tab === "evidence") {
+      var list = s.recs.slice().sort(function (x, y) { return x.date < y.date ? 1 : -1; });
+      body = '<div class="row between"><p class="hint">' + plural(list.length, "record", "records") + " for this project, newest first.</p>" +
+        '<button class="btn alt small" type="button" data-act="drawer" data-target="dr-evidence" data-needs-write>' + icon("plus") + "File a record</button></div>" +
+        (list.length ? tableTools("t-pev", "Search records", plural(list.length, "record", "records")) +
+          '<div class="table-wrap"><table class="dt" id="t-pev"><thead><tr><th data-sort="date">Date</th><th data-sort="text">Record</th><th data-sort="text">Type</th><th data-sort="text">Project</th><th data-sort="text">Person</th><th data-sort="text">Source</th><th>Timestamp</th></tr></thead><tbody>' + evidenceRows(list) + "</tbody></table></div>"
+          : '<div class="card empty"><p class="hint">No records yet. File the first one to start the trail.</p></div>') +
+        drawerHtml("dr-evidence", "File a record", evidenceForm(pr.id));
+    } else {
+      var rows = state.people.map(function (p) {
+        var hrs = Number((state.hours[p.id] || {})[pr.id]) || 0, tot = personTotal(p.id);
+        return '<tr><td>' + esc(p.name) + '<br><span class="small muted">' + esc(p.role) + '</span></td><td class="r num" data-v="' + hrs + '">' + fmt(hrs) + '</td><td class="r num">' + fmt(tot) + '</td><td class="r num">' + (tot ? Math.round(hrs / tot * 100) : 0) + "%</td></tr>";
+      }).join("");
+      body = '<div class="card stack-sm"><div class="row between"><h2>Hours this week</h2><a class="link-sm" href="#time">Edit in Weekly time</a></div><p class="hint">Week of ' + longDate(WEEK_OF) + ". The share of each person’s week on this project is what supports their wages in the claim.</p>" +
+        '<div class="table-wrap"><table class="dt" id="t-ptime"><thead><tr><th data-sort="text">Person</th><th class="r" data-sort="num">On this project</th><th class="r">Total week</th><th class="r">Share</th></tr></thead><tbody>' + rows + "</tbody></table></div></div>";
+    }
+    return '<section class="stack" aria-labelledby="h-main">' +
+      '<nav class="backlink"><a href="#projects">' + icon("arrow-right", "flip") + "All projects</a></nav>" +
+      pageHead("Project", esc(pr.name), "", '<span class="pill ' + (pr.status === "Active" ? "good" : "quiet") + '">' + esc(pr.status || "Active") + "</span>" +
+        (tab !== "evidence" ? '<button class="btn alt" type="button" data-act="drawer" data-target="dr-evidence" data-needs-write>' + icon("plus") + "File a record</button>" : "")) +
+      flashHtml() + tabs + '<div class="ptab-body" role="tabpanel">' + body + "</div>" +
+      (tab !== "evidence" ? drawerHtml("dr-evidence", "File a record", evidenceForm(pr.id)) : "") +
+      "</section>";
+  }
+
+  /* ---------- getting started (shows until the basics are done) ---------- */
+  function setupHtml() {
+    var steps = [
+      ["Set your year end", !!state.yearEnd, "deadlines", "All deadlines are worked out from it."],
+      ["Add your first project", state.projects.length > 0, "projects", "One per technical problem you are working on."],
+      ["Add your team", state.people.length > 1, MODE === "live" ? "team" : "time", "Everyone who works on R&D, so their hours count."],
+      ["File your first record", state.evidence.length > 0, "evidence", "A test result, photo or meeting note."],
+      ["Log a week of time", completion().done > 0 || rdHours() > 0, "time", "Two minutes each Monday."]
+    ];
+    var done = steps.filter(function (s) { return s[1]; }).length;
+    if (done === steps.length) return "";
+    return '<div class="card setup stack-sm"><div class="row between"><h2>Get set up</h2><span class="stamp">' + done + " of " + steps.length + " done</span></div>" +
+      '<div class="kpi-bar" aria-hidden="true"><span style="width:' + Math.round(done / steps.length * 100) + '%"></span></div>' +
+      '<ol class="setup-l">' + steps.map(function (s, i) {
+        return '<li class="' + (s[1] ? "done" : "") + '"><span class="setup-n">' + (s[1] ? icon("check-circle") : i + 1) + '</span><div><b>' + s[0] + '</b><span class="small muted">' + s[3] + "</span></div>" +
+          (s[1] ? "" : '<a class="btn small alt" href="#' + s[2] + '">Start</a>') + "</li>";
+      }).join("") + "</ol></div>";
+  }
+
+  /* ---------- sortable, searchable tables ---------- */
+  var dtState = {};
+  function dtApply(table) {
+    var id = table.id, st = dtState[id] || {}, tbody = table.tBodies[0];
+    if (!tbody) return;
+    var rows = [].slice.call(tbody.rows).filter(function (r) { return r.cells.length > 1; });
+    if (st.col != null) {
+      var th = table.tHead.rows[0].cells[st.col], kind = th.getAttribute("data-sort");
+      var val = function (r) { var c = r.cells[st.col]; var v = c.getAttribute("data-v"); v = v == null ? c.textContent.trim() : v; return kind === "num" ? parseFloat(v) || 0 : v.toLowerCase(); };
+      rows.sort(function (a, b) { var x = val(a), y = val(b); return (x < y ? -1 : x > y ? 1 : 0) * (st.dir || 1); });
+      rows.forEach(function (r) { tbody.appendChild(r); });
+    }
+    var q = (st.q || "").toLowerCase(), shown = 0;
+    rows.forEach(function (r) { var hit = !q || r.textContent.toLowerCase().indexOf(q) >= 0; r.hidden = !hit; if (hit) shown++; });
+    [].forEach.call(table.tHead.rows[0].cells, function (c, i) {
+      if (!c.hasAttribute("data-sort")) return;
+      c.setAttribute("aria-sort", st.col === i ? (st.dir === -1 ? "descending" : "ascending") : "none");
+    });
+    var cnt = document.getElementById(id + "-count");
+    if (cnt) cnt.textContent = q ? shown + " of " + rows.length + " shown" : plural(rows.length, "row", "rows");
+  }
+  function enhanceTables() {
+    [].forEach.call(app.querySelectorAll("table.dt"), function (t) {
+      [].forEach.call(t.tHead.rows[0].cells, function (c, i) {
+        if (!c.hasAttribute("data-sort") || c.querySelector("button")) return;
+        c.innerHTML = '<button type="button" class="th-sort" data-act="dt-sort" data-table="' + t.id + '" data-col="' + i + '">' + c.innerHTML + '<span class="th-ar" aria-hidden="true"></span></button>';
+      });
+      var inp = app.querySelector('input[data-dt="' + t.id + '"]');
+      if (inp && dtState[t.id] && dtState[t.id].q) inp.value = dtState[t.id].q;
+      dtApply(t);
+    });
+  }
+
+  /* ---------- slide-in panels ---------- */
+  var drawerReturn = null;
+  function openDrawer(id, from) {
+    var d = document.getElementById(id); if (!d) return;
+    drawerReturn = from || document.activeElement;
+    document.body.appendChild(d);   // out of the animated page, so it covers the whole window
+    d.hidden = false; document.body.classList.add("drawer-open");
+    setTimeout(function () { var f = d.querySelector("input:not([type=file]),select,textarea"); if (f) f.focus(); }, 60);
+  }
+  function closeDrawer() {
+    var d = document.querySelector(".drawer:not([hidden])"); if (!d) return;
+    d.hidden = true; document.body.classList.remove("drawer-open");
+    if (d.parentNode === document.body) d.remove();
+    if (drawerReturn && drawerReturn.focus && document.contains(drawerReturn)) drawerReturn.focus();
   }
 
   function vEvidence() {
@@ -429,37 +611,21 @@
     var rows = state.evidence.filter(function (e) {
       return (f.project === "all" || e.project === f.project) && (f.type === "all" || e.type === f.type);
     }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
-    var body = rows.map(function (e) {
-      return "<tr><td><span class=\"stamp\">" + e.date + "</span></td>" +
-        "<td>" + esc(e.title) + (e.file ? (MODE === "live" && e.filePath ? '<br><button class="linkbtn" type="button" data-act="download" data-path="' + esc(e.filePath) + '">' + esc(e.file) + '</button>' : '<br><span class="mono small muted">' + esc(e.file) + "</span>") : "") + "</td>" +
-        "<td>" + esc(e.type) + "</td><td>" + esc(project(e.project).name) + "</td>" +
-        "<td>" + esc(person(e.person).name) + "</td><td>" + esc(e.source) + "</td>" +
-        '<td><span class="pill quiet">' + ICON_LOCK + "Locked</span></td></tr>";
-    }).join("");
     var projOpts = '<option value="all">All projects</option>' + options(state.projects, f.project, "id", "name");
     var typeOpts = '<option value="all">All types</option>' + options(TYPES, f.type);
     return '<section class="stack" aria-labelledby="h-main">' +
-      '<div class="stack-sm"><p class="eyebrow">Evidence</p><h1 id="h-main"><span class="soft">' + plural(state.evidence.length, "record", "records") + ".</span> Dated and locked.</h1>" +
-      '<p class="lead">Upload a file, forward an email or snap a photo. Each one is tagged to a project and a person, and its date can’t be changed later.</p></div>' +
+      pageHead("Evidence", '<span class="soft">' + plural(state.evidence.length, "record", "records") + ".</span> Dated and locked.",
+        "Upload a file, forward an email or snap a photo. Each one is tagged to a project and a person, and its date can’t be changed later.",
+        '<button class="btn" type="button" data-act="drawer" data-target="dr-evidence" data-needs-write>' + icon("plus") + "File a record</button>") +
       flashHtml() +
-      '<div class="fields">' +
+      '<div class="fields filters">' +
         '<div class="field"><label for="flt-project">Project</label><select id="flt-project" data-filter="project" data-fk="flt-project">' + projOpts + "</select></div>" +
         '<div class="field"><label for="flt-type">Record type</label><select id="flt-type" data-filter="type" data-fk="flt-type">' + typeOpts + "</select></div>" +
       "</div>" +
-      '<p class="hint" role="status">Showing ' + rows.length + " of " + state.evidence.length + " records, newest first.</p>" +
-      '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Record</th><th>Type</th><th>Project</th><th>Person</th><th>Source</th><th>Timestamp</th></tr></thead><tbody>' +
-      (body || '<tr><td colspan="7" class="muted">No records match these filters.</td></tr>') + "</tbody></table></div>" +
-      '<form class="card form" id="f-evidence" novalidate><h2>File a record.</h2>' +
-      '<div class="fields">' +
-        '<div class="field wide"><label for="ev-title">What is it?</label><input id="ev-title" name="title" placeholder="For example: Chamber test 5 data" data-fk="ev-title"></div>' +
-        '<div class="field wide" id="ev-suggest-row" hidden><p class="hint" id="ev-suggest" aria-live="polite"></p><div><button class="btn small alt" type="button" data-act="use-suggest" data-fk="use-suggest">Use this project</button></div></div>' +
-        '<div class="field"><label for="ev-type">Type</label><select id="ev-type" name="type">' + options(TYPES, "Test data") + "</select></div>" +
-        '<div class="field"><label for="ev-project">Project</label><select id="ev-project" name="project">' + options(state.projects, state.projects[0] && state.projects[0].id, "id", "name") + "</select></div>" +
-        '<div class="field"><label for="ev-person">Person</label><select id="ev-person" name="person">' + options(state.people, "sam", "id", "name") + "</select></div>" +
-        '<div class="field"><label for="ev-source">Source</label><select id="ev-source" name="source">' + options(SOURCES, "Upload") + "</select></div>" +
-        '<div class="field wide"><label for="ev-file">File (optional)</label><input id="ev-file" name="file" type="file"><p class="hint">' + (MODE === "live" ? "Up to 50 MB. Once filed, it can’t be replaced." : "In the demo, only the file name is kept.") + '</p></div>' +
-      "</div>" +
-      '<div class="row"><button class="btn" type="submit" data-fk="ev-add">File it <span class="arr" aria-hidden="true">&rarr;</span></button><span class="hint">Dated ' + TODAY + ".</span></div></form>" +
+      tableTools("t-evidence", "Search records, people or projects", plural(rows.length, "record", "records")) +
+      '<div class="table-wrap"><table class="dt" id="t-evidence"><thead><tr><th data-sort="date">Date</th><th data-sort="text">Record</th><th data-sort="text">Type</th><th data-sort="text">Project</th><th data-sort="text">Person</th><th data-sort="text">Source</th><th>Timestamp</th></tr></thead><tbody>' +
+      (evidenceRows(rows) || '<tr><td colspan="7" class="muted">No records match these filters.</td></tr>') + "</tbody></table></div>" +
+      drawerHtml("dr-evidence", "File a record", evidenceForm()) +
       "</section>";
   }
 
@@ -606,7 +772,7 @@
   }
 
   var VIEWS = {overview:vOverview, projects:vProjects, evidence:vEvidence, time:vTime, funding:vFunding, gaps:vGaps, export:vExport,
-    team:function () { return vTeam(); }, companies:function () { return vCompanies(); }};
+    team:function () { return vTeam(); }, companies:function () { return vCompanies(); }, project: vProject};
 
   /* ---------- plan and learn sections (assets/guide.js) ---------- */
   var GUIDE = window.SRED_GUIDE ? window.SRED_GUIDE({
@@ -653,14 +819,14 @@
     nav.innerHTML = NAV.map(function (it) {
       var grp = NAV_GROUP[it[0]];
       return (grp ? '<p class="nav-group">' + grp + "</p>" : "") +
-        '<a class="tab" href="#' + it[0] + '" title="' + esc(it[2]) + '"' + (route === it[0] ? ' aria-current="page"' : "") + ">" +
+        '<a class="tab" href="#' + it[0] + '" title="' + esc(it[2]) + '"' + (route === it[0] || (route === "project" && it[0] === "projects") ? ' aria-current="page"' : "") + ">" +
         icon(NAV_ICON[it[0]]) + '<span class="tab-label">' + esc(it[2]) + "</span>" +
         (it[0] === "gaps" && n ? '<span class="count" aria-label="' + plural(n, "open gap", "open gaps") + '">' + n + "</span>" : "") +
         (GUIDE && GUIDE.locked && GUIDE.locked(it[0]) ? '<span class="tab-lock" title="Growth and Scale plans">' + icon("lock-simple") + '<span class="sr">Included in Growth and Scale</span></span>' : "") + "</a>";
     }).join("");
     var cur = NAV.find(function (x) { return x[0] === route; });
     var cp = document.getElementById("crumbPage"), co = document.getElementById("crumbOrg");
-    if (cp) cp.textContent = cur ? cur[2] : "";
+    if (cp) cp.textContent = route === "project" ? (state.projects.find(function (p) { return p.id === curProject; }) || {name: "Project"}).name : cur ? cur[2] : "";
     if (co) co.textContent = ORG_NAME.replace(" (sample)", "");
     var chips = document.getElementById("topChips");
     if (chips) chips.innerHTML = '<span class="chip">' + icon("calendar-blank") + "Tax year " + YEAR + "</span>" +
@@ -673,7 +839,10 @@
   function render(moveFocus) {
     var fk = document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute("data-fk");
     renderNav();
+    document.body.classList.remove("drawer-open");
+    [].forEach.call(document.querySelectorAll("body > .drawer"), function (d) { d.remove(); });
     app.innerHTML = VIEWS[route]();
+    enhanceTables();
     applyPermissions();
     motion(!!moveFocus || firstAnim);
     firstAnim = false;
@@ -688,6 +857,8 @@
 
   function routeFromHash() {
     var h = (location.hash || "").replace("#", "");
+    var m = /^project\/([\w-]+)$/.exec(h);
+    if (m) { if (curProject !== m[1]) state.ptab = "overview"; curProject = m[1]; return "project"; }
     return ROUTES.indexOf(h) >= 0 ? h : "overview";
   }
 
@@ -700,6 +871,18 @@
 
   /* ---------- events ---------- */
   document.addEventListener("click", function (e) {
+    var da = e.target.closest && e.target.closest("[data-act]");
+    if (da) {
+      var dact = da.getAttribute("data-act");
+      if (dact === "drawer") { openDrawer(da.getAttribute("data-target"), da); return; }
+      if (dact === "drawer-close") { closeDrawer(); return; }
+      if (dact === "ptab") { state.ptab = da.getAttribute("data-tab"); render(); var tb = app.querySelector(".ptab.on"); if (tb) tb.focus(); return; }
+      if (dact === "dt-sort") {
+        var tid = da.getAttribute("data-table"), col = Number(da.getAttribute("data-col")), st = dtState[tid] || (dtState[tid] = {});
+        st.dir = st.col === col ? -(st.dir || 1) : 1; st.col = col;
+        dtApply(document.getElementById(tid)); return;
+      }
+    }
     var o = e.target.closest("[data-open]");
     if (o) state.open[o.getAttribute("data-open")] = true;
 
@@ -756,6 +939,11 @@
 
   document.addEventListener("input", function (e) {
     var t = e.target;
+    if (t.matches("input[data-dt]")) {
+      var tid = t.getAttribute("data-dt"); (dtState[tid] || (dtState[tid] = {})).q = t.value;
+      var tbl = document.getElementById(tid); if (tbl) dtApply(tbl);
+      return;
+    }
     if (t.matches("textarea[data-key]")) {
       var pr = state.projects.find(function (p) { return p.id === t.getAttribute("data-pid"); });
       if (pr) { pr[t.getAttribute("data-key")] = t.value; persist.projectField(pr.id, t.getAttribute("data-key"), t.value); }
@@ -866,9 +1054,9 @@
       var np = {id: id, name: name, status: "Active", objective: "", uncertainty: "", hypothesis: "", results: ""};
       state.projects.push(np);
       persist.addProject(np);
-      state.open = {}; state.open[id] = true;
-      state.flash = {text: "Added \"" + name + "\". Answer the four prompts as the work starts."};
-      render();
+      state.flash = {text: "Added \"" + name + "\". Start with the goal, then the T661 lines as the work starts."};
+      state.ptab = "overview";
+      location.hash = "project/" + id;
       return;
     }
     if (form.id === "f-funding") {
@@ -934,7 +1122,7 @@
   // Reveal on scroll, staggered, only when a page is first shown.
   // Re-renders caused by typing or filtering show content at once.
   function motion(animate) {
-    var auto = app.querySelectorAll("section > :not(.hero):not(.rv), details.proj, .records li");
+    var auto = app.querySelectorAll("section > :not(.hero):not(.rv):not(.drawer), details.proj, .records li");
     [].forEach.call(auto, function (el, i) {
       el.classList.add("rv");
       if (!el.style.transitionDelay) el.style.transitionDelay = Math.min(i * 0.05, 0.3).toFixed(2) + "s";
@@ -1167,7 +1355,7 @@
       if (thr && !canManage()) { thr.disabled = true; var hn = thr.nextElementSibling; if (hn) hn.textContent = "Only a company admin can change the alert level."; }
       return;
     }
-    [].forEach.call(app.querySelectorAll("form, [data-act='submit-week'], [data-act='add-record'], #ev-suggest-row"), function (el) { el.hidden = true; el.style.display = "none"; });
+    [].forEach.call(app.querySelectorAll("form, [data-act='submit-week'], [data-act='add-record'], #ev-suggest-row, [data-needs-write]"), function (el) { el.hidden = true; el.style.display = "none"; });
     [].forEach.call(app.querySelectorAll("textarea, input[data-hours], #threshold"), function (el) { el.readOnly = true; el.disabled = true; });
     var h1 = app.querySelector("h1");
     if (h1 && !app.querySelector(".readonly-note")) h1.insertAdjacentHTML("afterend", '<p class="badge readonly-note">View only: advisors can read everything but not change it.</p>');
@@ -1484,7 +1672,7 @@
   var cmdItems = [], cmdSel = 0, cmdLastFocus = null;
   function cmdSource() {
     var out = NAV.map(function (n) { return {kind: "Page", label: n[2], icon: NAV_ICON[n[0]], go: n[0]}; });
-    state.projects.forEach(function (p) { out.push({kind: "Project", label: p.name, icon: "flask", go: "projects", open: p.id}); });
+    state.projects.forEach(function (p) { out.push({kind: "Project", label: p.name, icon: "flask", go: "project/" + p.id}); });
     [["File a record", "evidence", "plus"], ["Log this week’s hours", "time", "clock"], ["Log a grant or subsidy", "funding", "receipt"],
      ["Check a project’s eligibility", "eligibility", "seal-check"], ["Estimate your credit", "claimable", "calculator"],
      ["Change the year end", "deadlines", "calendar-blank"], ["Copy the request list", "strength", "gauge"], ["Export the binder", "export", "books"]
@@ -1568,6 +1756,10 @@
     document.addEventListener("click", function (e) { if (!bellPop.hidden && !e.target.closest(".bell-wrap")) bellToggle(false); });
     document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !bellPop.hidden) { bellToggle(false); bellBtn.focus(); } });
   }
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && document.querySelector(".drawer:not([hidden])")) { e.preventDefault(); closeDrawer(); }
+  });
 
   /* ---------- start ---------- */
   var BASE_NAV = NAV.slice();
