@@ -309,6 +309,7 @@
       (g.length ? '<div class="stack-sm"><h2 class="rv">Start with these.</h2><ul class="gaps">' + actions + "</ul>" +
                   (g.length > 4 ? '<p><a href="#gaps">' + plural(g.length - 4, "more gap", "more gaps") + " in Gap alerts</a></p>" : "") + "</div>"
                 : '<p class="flash">All checks pass. <a href="#export">Export the binder</a>.</p>') +
+      (GUIDE ? GUIDE.overviewCard() : "") +
       '<div class="stack-sm rv"><h2>Recently filed</h2><div class="marquee"><div class="mq-track">' + mqItems(false) + mqItems(true) + "</div></div></div>" +
       '<div class="card chart stack-sm rv"><h2>A steady trail, month by month.</h2>' +
       '<p class="hint">Reviewers want to see work recorded as it happened, not pieced together at year end.</p>' +
@@ -586,6 +587,21 @@
 
   var VIEWS = {overview:vOverview, projects:vProjects, evidence:vEvidence, time:vTime, funding:vFunding, gaps:vGaps, export:vExport,
     team:function () { return vTeam(); }, companies:function () { return vCompanies(); }};
+
+  /* ---------- plan and learn sections (assets/guide.js) ---------- */
+  var GUIDE = window.SRED_GUIDE ? window.SRED_GUIDE({
+    esc: esc, icon: icon, money: money, longDate: longDate, today: TODAY,
+    fundingTotal: function () { return fundingTotal(); },
+    render: function () { render(); },
+    toast: function (t, bad) { toast(t, bad); },
+    get mode() { return MODE; }
+  }) : null;
+  if (GUIDE) {
+    GUIDE.nav.forEach(function (n) { NAV.push(n); ROUTES.push(n[0]); });
+    Object.keys(GUIDE.icons).forEach(function (k) { NAV_ICON[k] = GUIDE.icons[k]; });
+    Object.keys(GUIDE.groups).forEach(function (k) { NAV_GROUP[k] = GUIDE.groups[k]; });
+    Object.keys(GUIDE.views).forEach(function (k) { VIEWS[k] = GUIDE.views[k]; });
+  }
 
   /* ---------- render ---------- */
   var nav = document.getElementById("nav");
@@ -1208,7 +1224,7 @@
 
   function setNav() {
     NAV.length = 0; ROUTES.length = 0;
-    BASE_NAV.forEach(function (n) { NAV.push(n); ROUTES.push(n[0]); });
+    BASE_NAV.forEach(function (n) { if (n[0] === "plans" && MODE === "live" && !canManage()) return; NAV.push(n); ROUTES.push(n[0]); });
     if (MODE === "live" && canManage()) { NAV.push(["team", "07", "Team"]); ROUTES.push("team"); }
     if (MODE === "live" && ROLE === "kv") { NAV.push(["companies", "08", "Companies"]); ROUTES.push("companies"); }
   }
