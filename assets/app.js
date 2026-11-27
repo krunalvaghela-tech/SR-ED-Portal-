@@ -87,20 +87,20 @@
           results:"Chamber tests 1 to 4 complete. Fit error 3.1 °C; refit with door-seal data planned."}
       ],
       evidence: [
-        {id:"e1", date:"2026-02-12", title:"Mesh slot schedule design notes", type:"Lab notes", project:"p1", person:"jordan", source:"Upload"},
+        {id:"e1", date:"2026-02-12", title:"Mesh slot schedule design notes", type:"Lab notes", project:"p1", person:"jordan", source:"Upload", file:"slot-schedule-notes.pdf"},
         {id:"e2", date:"2026-03-04", title:"Kickoff meeting minutes, mesh project", type:"Meeting minutes", project:"p1", person:"alex", source:"Email-in"},
-        {id:"e3", date:"2026-03-21", title:"Cold chamber setup photos", type:"Photo", project:"p3", person:"sam", source:"Photo capture"},
-        {id:"e4", date:"2026-04-15", title:"Test run 1 delivery log", type:"Test data", project:"p1", person:"alex", source:"Upload"},
-        {id:"e5", date:"2026-05-09", title:"Camera rig lighting trials", type:"Photo", project:"p2", person:"sam", source:"Photo capture"},
-        {id:"e6", date:"2026-05-28", title:"Chamber tests 1 to 2 data", type:"Test data", project:"p3", person:"sam", source:"Upload"},
-        {id:"e7", date:"2026-06-17", title:"Grain image model v0.3 results", type:"Version history", project:"p2", person:"morgan", source:"Upload"},
-        {id:"e8", date:"2026-07-08", title:"Q2 progress report, mesh project", type:"Progress report", project:"p1", person:"jordan", source:"Upload"},
+        {id:"e3", date:"2026-03-21", title:"Cold chamber setup photos", type:"Photo", project:"p3", person:"sam", source:"Photo capture", file:"chamber-setup-photos.jpg"},
+        {id:"e4", date:"2026-04-15", title:"Test run 1 delivery log", type:"Test data", project:"p1", person:"alex", source:"Upload", file:"test-run-1-log.csv"},
+        {id:"e5", date:"2026-05-09", title:"Camera rig lighting trials", type:"Photo", project:"p2", person:"sam", source:"Photo capture", file:"lighting-trials.jpg"},
+        {id:"e6", date:"2026-05-28", title:"Chamber tests 1 to 2 data", type:"Test data", project:"p3", person:"sam", source:"Upload", file:"chamber-tests-1-2.xlsx"},
+        {id:"e7", date:"2026-06-17", title:"Grain image model v0.3 results", type:"Version history", project:"p2", person:"morgan", source:"Upload", file:"model-v0.3-results.pdf"},
+        {id:"e8", date:"2026-07-08", title:"Q2 progress report, mesh project", type:"Progress report", project:"p1", person:"jordan", source:"Upload", file:"q2-progress-report.pdf"},
         {id:"e9", date:"2026-07-30", title:"Model v0.5 training notes", type:"Lab notes", project:"p2", person:"morgan", source:"Upload"},
-        {id:"e10", date:"2026-08-19", title:"Thermal model fit v2", type:"Version history", project:"p3", person:"morgan", source:"Upload"},
-        {id:"e11", date:"2026-09-11", title:"Test run 3 delivery log", type:"Test data", project:"p1", person:"alex", source:"Upload"},
-        {id:"e12", date:"2026-10-06", title:"Lighting ring comparison data", type:"Test data", project:"p2", person:"sam", source:"Upload"},
-        {id:"e13", date:"2026-10-22", title:"Chamber tests 3 to 4 data", type:"Test data", project:"p3", person:"sam", source:"Upload"},
-        {id:"e14", date:"2026-11-12", title:"Slot adaptation review minutes", type:"Meeting minutes", project:"p1", person:"jordan", source:"Email-in"}
+        {id:"e10", date:"2026-08-19", title:"Thermal model fit v2", type:"Version history", project:"p3", person:"morgan", source:"Upload", file:"thermal-fit-v2.pdf"},
+        {id:"e11", date:"2026-09-11", title:"Test run 3 delivery log", type:"Test data", project:"p1", person:"alex", source:"Upload", file:"test-run-3-log.csv"},
+        {id:"e12", date:"2026-10-06", title:"Lighting ring comparison data", type:"Test data", project:"p2", person:"sam", source:"Upload", file:"lighting-ring-data.xlsx"},
+        {id:"e13", date:"2026-10-22", title:"Chamber tests 3 to 4 data", type:"Test data", project:"p3", person:"sam", source:"Upload", file:"chamber-tests-3-4.xlsx"},
+        {id:"e14", date:"2026-11-12", title:"Slot adaptation review minutes", type:"Meeting minutes", project:"p1", person:"jordan", source:"Email-in", file:"slot-review-minutes.pdf"}
       ],
       hours: {
         alex:   {p1:22, p2:8,  p3:0,  other:10},
@@ -300,7 +300,8 @@
 
     // figure cards
     var mini = function (href, ic, label, value, sub) {
-      return '<a class="mini" href="#' + href + '"><span class="mini-ico">' + icon(ic) + '</span><span class="mini-v num">' + value + '</span><span class="mini-l">' + label + '</span><span class="mini-s">' + sub + "</span></a>";
+      var vv = String(value).replace(/^(\$?[\d,]+%?)/, '<span data-count>$1</span>');
+      return '<a class="mini" href="#' + href + '"><span class="mini-ico">' + icon(ic) + '</span><span class="mini-v num">' + vv + '</span><span class="mini-l">' + label + '</span><span class="mini-s">' + sub + "</span></a>";
     };
     var minis = '<div class="minis">' +
       (est == null && GUIDE && !GUIDE.allows("estimator") ? mini("plans", "lock-simple", "Estimated credit", "Growth", "Unlock the credit estimator") :
@@ -322,7 +323,7 @@
     var path = smoothPath(pts), area = pts.length ? path + " L" + x(upto).toFixed(1) + " " + (H - 28) + " L" + x(0).toFixed(1) + " " + (H - 28) + " Z" : "";
     var peak = Math.max(0, upto);
     var grid = [0.5, 1].map(function (f) { return '<line class="lc-grid" x1="' + P + '" x2="' + (W - P) + '" y1="' + y(maxC * f).toFixed(1) + '" y2="' + y(maxC * f).toFixed(1) + '"/>'; }).join("");
-    var dots = pts.map(function (p, i) { return '<circle class="lc-dot' + (i === peak ? " peak" : "") + '" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="' + (i === peak ? 5 : 3) + '"><title>' + MONTHS[Number(months[i].slice(5)) - 1] + ": " + monthly[i] + " filed, " + counts[i] + " in total</title></circle>"; }).join("");
+    var dots = pts.map(function (p, i) { return '<circle style="animation-delay:' + (0.25 + i * 0.08).toFixed(2) + 's" class="lc-dot' + (i === peak ? " peak" : "") + '" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="' + (i === peak ? 5 : 3) + '"><title>' + MONTHS[Number(months[i].slice(5)) - 1] + ": " + monthly[i] + " filed, " + counts[i] + " in total</title></circle>"; }).join("");
     var labels = months.map(function (mm, i) { return '<text class="lc-x" x="' + x(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + MONTHS[Number(mm.slice(5)) - 1] + "</text>"; }).join("");
     var tip = "";
     if (pts.length) {
@@ -336,7 +337,7 @@
     }
     var lineCard = '<div class="card ov-card"><div class="row between"><h2>Records filed</h2><span class="stamp">' + plural(run, "record", "records") + " this tax year</span></div>" +
       '<svg class="lc" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Running total of records filed: ' + months.map(function (mm, i) { return MONTHS[Number(mm.slice(5)) - 1] + " " + counts[i]; }).join(", ") + '">' +
-      grid + (area ? '<path class="lc-area" d="' + area + '"/><path class="lc-line" d="' + path + '"/>' : "") + tip + dots + labels + "</svg></div>";
+      grid + (area ? '<path class="lc-area" d="' + area + '"/><path class="lc-line" pathLength="1" d="' + path + '"/>' : "") + tip + dots + labels + "</svg></div>";
 
     // claim strength by category
     var pb = sc ? sc.cats.filter(function (k) { return k.pct != null; }).map(function (k) {
@@ -504,6 +505,50 @@
       '<input type="search" data-dt="' + id + '" placeholder="' + placeholder + '" data-fk="dt-' + id + '"></label><span class="hint dt-count" id="' + id + '-count" role="status">' + count + "</span></div>";
   }
 
+  /* ---------- storage and plan usage ---------- */
+  var GB = 1073741824;
+  function fileBytes(e) {
+    if (!e.file) return 0;
+    if (e.size) return Number(e.size);
+    if (localFiles[e.id]) return localFiles[e.id].size || 0;
+    // Sample records have no real file: give them a steady, realistic size so the meter means something.
+    var h = 0; String(e.id + e.file).split("").forEach(function (c) { h = (h * 33 + c.charCodeAt(0)) % 100000; });
+    var kind = fileKind(e.file), base = kind === "image" ? 3.2e6 : kind === "pdf" ? 1.4e6 : 6e5;
+    return Math.round(base * (0.5 + (h % 1000) / 1000));
+  }
+  function storageUsed() { return state.evidence.reduce(function (s, e) { return s + fileBytes(e); }, 0); }
+  function bytesText(b) {
+    if (b >= GB) return (b / GB).toFixed(b >= 10 * GB ? 0 : 1) + " GB";
+    if (b >= 1048576) return (b / 1048576).toFixed(b >= 10485760 ? 0 : 1) + " MB";
+    return Math.max(0, Math.round(b / 1024)) + " KB";
+  }
+  function gbText(gb) { return gb >= 1024 ? (gb / 1024) + " TB" : gb + " GB"; }
+  function usage() {
+    var L = GUIDE ? GUIDE.limits() : {projects: Infinity, people: Infinity, storageGB: 50, label: "Growth"};
+    var active = state.projects.filter(function (p) { return (p.status || "Active") === "Active"; }).length;
+    return {plan: L.label,
+      projects: {used: active, max: L.projects, label: "Active projects"},
+      people: {used: state.people.length, max: L.people, label: "People on the timesheet"},
+      storage: {used: storageUsed(), max: L.storageGB * GB, gb: L.storageGB, label: "Evidence locker"}};
+  }
+  function usagePct(u) { return isFinite(u.max) && u.max > 0 ? Math.min(100, Math.round(u.used / u.max * 100)) : 0; }
+  function usageHtml() {
+    var u = usage();
+    var row = function (k) {
+      var x = u[k], inf = !isFinite(x.max), pct = usagePct(x);
+      var val = k === "storage" ? bytesText(x.used) + " of " + gbText(x.gb) : x.used + (inf ? "" : " of " + x.max);
+      return '<li class="use' + (pct >= 100 ? " full" : pct >= 80 ? " near" : "") + '"><div class="pb-h"><span>' + x.label + '</span><span class="num">' + val + (inf ? '<span class="muted"> · no limit</span>' : "") + "</span></div>" +
+        '<span class="pb-t" aria-hidden="true"><span style="width:' + (inf ? 8 : Math.max(2, pct)) + '%"></span></span>' +
+        (pct >= 100 ? '<span class="small use-note">Limit reached</span>' : pct >= 80 ? '<span class="small use-note">' + pct + "% used</span>" : "") + "</li>";
+    };
+    return '<ul class="pbars usage">' + row("projects") + row("people") + row("storage") + "</ul>";
+  }
+  function nearLimits() {
+    var u = usage(), out = [];
+    ["projects", "people", "storage"].forEach(function (k) { var p = usagePct(u[k]); if (p >= 80) out.push({k: k, pct: p, label: u[k].label}); });
+    return out;
+  }
+
   /* ---------- company profile (one per client company) ---------- */
   var PROVINCE_LIST = [["AB","Alberta"],["BC","British Columbia"],["MB","Manitoba"],["NB","New Brunswick"],["NL","Newfoundland and Labrador"],["NS","Nova Scotia"],
     ["NT","Northwest Territories"],["NU","Nunavut"],["ON","Ontario"],["PE","Prince Edward Island"],["QC","Quebec"],["SK","Saskatchewan"],["YT","Yukon"]];
@@ -553,17 +598,6 @@
     else inner = '<input id="' + id + '" name="' + k + '" type="' + f[4] + '" value="' + esc(v == null ? "" : v) + '"' + (f[4] === "number" ? ' min="0" inputmode="numeric"' : "") + dis + ">";
     return '<div class="field' + (k === "address" ? " wide" : "") + '"><label for="' + id + '">' + esc(f[1]) + (f[3] ? ' <span class="req" title="Needed for a complete profile">Required</span>' : "") + "</label>" + inner +
       (f[5] ? '<p class="hint">' + esc(f[5]) + "</p>" : "") + '<p class="field-err" id="' + id + '-err" role="alert"></p></div>';
-  }
-  function usageHtml() {
-    var L = GUIDE ? GUIDE.limits() : {projects: Infinity, people: Infinity, storageGB: 100, label: "Growth"};
-    var meter = function (label, used, max, unit) {
-      var inf = !isFinite(max), pct = inf ? Math.min(100, used * 4) : Math.min(100, Math.round(used / max * 100));
-      return '<li><div class="pb-h"><span>' + label + '</span><span class="num">' + used + (inf ? "" : " of " + max) + (unit || "") + (inf ? '<span class="muted"> · no limit</span>' : "") + "</span></div>" +
-        '<span class="pb-t' + (!inf && used >= max ? " full" : "") + '" aria-hidden="true"><span style="width:' + (inf ? 12 : pct) + '%"></span></span></li>';
-    };
-    var active = state.projects.filter(function (p) { return (p.status || "Active") === "Active"; }).length;
-    return '<ul class="pbars">' + meter("Active projects", active, L.projects) + meter("People on the timesheet", state.people.length, L.people) +
-      '<li><div class="pb-h"><span>Evidence storage</span><span class="num">' + L.storageGB + " GB included</span></div></li></ul>";
   }
   function vCompany() {
     var c = company(), done = profileDone(), ro = !canManage(), L = GUIDE ? GUIDE.limits() : null;
@@ -939,6 +973,9 @@
     get billing() { return billing; },
     get role() { return ROLE; },
     company: function () { return state && state.company; },
+    usageHtml: function () { return usageHtml(); },
+    nearLimits: function () { return nearLimits(); },
+    openOnboard: function () { openOnboard(); },
     fetchGuides: function () { return sb ? sb.from("funding_guides").select("slug,title,kind,body,checked_on").order("sort") : Promise.resolve({data: []}); },
     get canManage() { return canManage(); },
     stripe: (window.SRED_CONFIG || {}).stripe || {}
@@ -1216,7 +1253,12 @@
         person: form.elements.person.value, source: form.elements.source.value, file: fileObj ? fileObj.name : ""
       };
       if (fileObj && fileObj.size > 50 * 1024 * 1024) { state.flash = {bad: true, text: fileObj.name + " is over 50 MB. Choose a smaller file."}; render(); return; }
-      if (fileObj) localFiles[rec.id] = {url: URL.createObjectURL(fileObj), type: fileObj.type, name: fileObj.name, size: fileObj.size};
+      if (fileObj) {
+        var su = usage().storage;
+        if (su.used + fileObj.size > su.max) { state.flash = {bad: true, text: "Your evidence locker is full: " + bytesText(su.used) + " of " + gbText(su.gb) + " used. Upgrade your plan for more space, or file the record without the file."}; render(); return; }
+        localFiles[rec.id] = {url: URL.createObjectURL(fileObj), type: fileObj.type, name: fileObj.name, size: fileObj.size};
+        rec.size = fileObj.size;
+      }
       state.evidence.push(rec);
       persist.evidence(rec, fileObj);
       state.filters = {project: "all", type: "all"};
@@ -1364,17 +1406,20 @@
   function countUp(el) {
     if (reduced || el.getAttribute("data-counted")) return;
     el.setAttribute("data-counted", "1");
-    var m = /^(\d+(?:\.\d+)?)(.*)$/.exec(el.textContent);
+    var m = /^(\$?)([\d,]+(?:\.\d+)?)(.*)$/.exec(el.textContent.trim());
     if (!m) return;
-    var target = parseFloat(m[1]), suffix = m[2] || "", dec = (m[1].split(".")[1] || "").length;
+    var prefix = m[1], commas = m[2].indexOf(",") >= 0, raw = m[2].replace(/,/g, "");
+    var target = parseFloat(raw), dec = (raw.split(".")[1] || "").length;
+    m = [m[0], raw, m[3] || ""]; var suffix = m[2];
     if (!target) return;
     var start = null, dur = 1100, done = false;
-    function settle() { if (!done) { done = true; el.textContent = m[1] + suffix; } }
+    function settle() { if (!done) { done = true; el.textContent = prefix + (commas ? Number(m[1]).toLocaleString("en-CA") : m[1]) + suffix; } }
     function frame(ts) {
       if (done) return;
       if (start === null) start = ts;
       var p = Math.min((ts - start) / dur, 1);
-      el.textContent = (target * (1 - Math.pow(1 - p, 3))).toFixed(dec) + suffix;
+      var cur = target * (1 - Math.pow(1 - p, 3));
+      el.textContent = prefix + (commas ? Math.round(cur).toLocaleString("en-CA") : cur.toFixed(dec)) + suffix;
       if (p < 1) requestAnimationFrame(frame); else settle();
     }
     setTimeout(settle, dur + 400);
@@ -1499,7 +1544,11 @@
                  title: rec.title, record_type: rec.type, source: rec.source};
       var go = function (path) {
         if (path) { row.file_path = path; rec.filePath = path; }
-        sb.from("evidence").insert(row).then(function (r) { if (check(r, "the record")) toast("Record saved."); });
+        if (file) row.file_size = file.size;
+        sb.from("evidence").insert(row).then(function (r) {
+          if (r.error && row.file_size && /file_size/.test(r.error.message || "")) { delete row.file_size; return sb.from("evidence").insert(row).then(function (r2) { if (check(r2, "the record")) toast("Record saved."); }); }
+          if (check(r, "the record")) toast("Record saved.");
+        });
       };
       if (!file) return go(null);
       if (file.size > 50 * 1024 * 1024) { toast("That file is over 50 MB. The record was saved without it.", true); return go(null); }
@@ -1651,7 +1700,7 @@
       projects: res[2].data.map(function (p) { return {id: p.id, name: p.name, status: p.status, objective: p.objective, uncertainty: p.uncertainty, hypothesis: p.hypothesis, results: p.results}; }),
       evidence: res[3].data.map(function (e) {
         var file = e.file_path ? e.file_path.split("/").pop() : "";
-        return {id: e.id, date: localISO(new Date(e.recorded_at)), title: e.title, type: e.record_type, project: e.project_id, person: e.person_id, source: e.source, file: file, filePath: e.file_path};
+        return {id: e.id, date: localISO(new Date(e.recorded_at)), title: e.title, type: e.record_type, project: e.project_id, person: e.person_id, source: e.source, file: file, filePath: e.file_path, size: e.file_size || 0};
       }),
       hours: {}, history: {}, weekSubmitted: false,
       records: res[5].data.map(function (r) { return {id: r.id, label: r.label, status: r.status, note: r.note}; }),
@@ -1808,25 +1857,178 @@
   }
 
   function vCompanies() {
-    var list = myOrgs.map(function (o) {
-      return '<li><div class="rl"><span><strong>' + esc(o.name) + '</strong></span><span class="small muted">Tax year ' + o.tax_year + "</span></div>" +
-        (o.id === orgId ? '<span class="pill good">Open now</span>' : '<button class="btn small alt" type="button" data-act="open-org" data-id="' + o.id + '">Open</button>') + "</li>";
-    }).join("") || '<li class="muted">No companies yet. Add the first one.</li>';
+    if (!kvList) { loadCompanies(); }
+    var list = kvList || [];
+    var req = CO_FIELDS.filter(function (f) { return f[3]; });
+    var rows = list.map(function (o) {
+      var pct = Math.round(req.filter(function (f) { var v = o[f[0]]; return v !== null && v !== undefined && v !== ""; }).length / req.length * 100);
+      var bl = o.billing, plan = bl ? (GUIDE && GUIDE.LIMITS[bl.plan] || {label: bl.plan}).label : "Not set";
+      var st = !bl ? "" : bl.status === "trialing" ? (bl.trial_ends_at && Date.parse(bl.trial_ends_at) < Date.now() ? "Trial ended" : "Trial") : bl.status === "active" ? "Active" : bl.status.replace(/_/g, " ");
+      return '<tr><td data-v="' + esc(o.operating_name || o.name) + '"><span class="who">' + avatarSm(o.operating_name || o.name) + "<span><b>" + esc(o.operating_name || o.name) + "</b>" + (o.legal_name && o.legal_name !== (o.operating_name || o.name) ? '<br><span class="small muted">' + esc(o.legal_name) + "</span>" : "") + "</span></span></td>" +
+        '<td data-v="' + esc(plan) + '"><span class="tag' + (bl ? "" : " quiet") + '">' + esc(plan) + '</span> <span class="small muted">' + esc(st) + "</span></td>" +
+        '<td data-v="' + (o.province || "") + '">' + esc(o.province || "–") + "</td>" +
+        '<td data-v="' + pct + '"><span class="mini-meter" aria-label="Profile ' + pct + ' percent complete"><span style="width:' + pct + '%"></span></span> ' + pct + "%</td>" +
+        '<td data-v="' + (o.fiscal_year_end || "") + '">' + (o.fiscal_year_end ? longDate(o.fiscal_year_end) : "Dec 31") + "</td>" +
+        "<td>" + (o.id === orgId ? '<span class="pill good">Open now</span>' : '<button class="btn small alt" type="button" data-act="open-org" data-id="' + o.id + '">Open</button>') + "</td></tr>";
+    }).join("");
+    var count = function (p) { return list.filter(function (o) { return o.billing && o.billing.plan === p; }).length; };
     return '<section class="stack" aria-labelledby="h-main">' +
-      '<div class="stack-sm"><p class="eyebrow">Companies</p><h1 id="h-main"><span class="soft">' + plural(myOrgs.length, "client company", "client companies") + ".</span> One binder each.</h1>" +
-      '<p class="lead">Each company gets its own records, team and binder. Only KV admins see this list.</p></div>' +
-      '<div class="grid2"><div class="card stack-sm"><h2>All companies</h2><ul class="records">' + list + "</ul></div>" +
-      '<form class="card form stack-sm" id="f-company" novalidate><h2>Onboard a company</h2><p class="hint">Creates the company, sets its membership and invites its admin. Everything they add stays inside this company.</p><div class="fields">' +
-        '<div class="field wide"><label for="nc-legal">Legal name</label><input id="nc-legal" name="legal" placeholder="For example: Prairie Sensor Works Inc."></div>' +
-        '<div class="field"><label for="nc-op">Operating name (optional)</label><input id="nc-op" name="op" placeholder="Prairie Sensor Works"></div>' +
-        '<div class="field"><label for="nc-bn">CRA business number (optional)</label><input id="nc-bn" name="bn" placeholder="123456789RC0001"></div>' +
-        '<div class="field"><label for="nc-prov">Province</label><select id="nc-prov" name="prov">' + PROVINCE_LIST.map(function (p) { return '<option value="' + p[0] + '"' + (p[0] === "MB" ? " selected" : "") + ">" + p[1] + "</option>"; }).join("") + "</select></div>" +
-        '<div class="field"><label for="nc-ye">Tax year end</label><input id="nc-ye" name="ye" type="date" value="' + new Date().getFullYear() + '-12-31"></div>' +
-        '<div class="field"><label for="nc-plan">Membership</label><select id="nc-plan" name="plan"><option value="starter">Starter</option><option value="growth" selected>Growth</option><option value="scale">Scale</option><option value="partner">Partner (advisor firm)</option></select></div>' +
-        '<div class="field"><label for="nc-status">Billing</label><select id="nc-status" name="status"><option value="trialing">14-day free trial</option><option value="active">Active (paid outside Stripe)</option></select></div>' +
-        '<div class="field"><label for="nc-cname">Main contact name</label><input id="nc-cname" name="cname" placeholder="Owner or controller"></div>' +
-        '<div class="field"><label for="nc-admin">Company admin email</label><input id="nc-admin" name="admin" type="email" placeholder="owner@company.ca"><p class="hint">They get admin access when they sign in with this email.</p></div>' +
-      '</div><div class="row"><button class="btn" type="submit">Onboard company</button></div></form></div></section>';
+      pageHead("Companies", '<span class="soft">' + plural(list.length, "client company", "client companies") + ".</span> One binder each.",
+        "Each company has its own records, team and binder. Only KV admins see this list.",
+        '<button class="btn" type="button" data-act="onboard">' + icon("plus") + "Onboard a company</button>") +
+      '<div class="minis four">' + [["Starter", "starter"], ["Growth", "growth"], ["Scale", "scale"], ["Partner", "partner"]].map(function (p) {
+        return '<div class="mini"><span class="mini-ico">' + icon("buildings") + '</span><span class="mini-v num">' + count(p[1]) + '</span><span class="mini-l">' + p[0] + "</span></div>"; }).join("") + "</div>" +
+      (kvList === null ? '<p class="hint" role="status">Loading companies…</p>' : list.length ?
+        tableTools("t-companies", "Search companies", plural(list.length, "company", "companies")) +
+        '<div class="table-wrap"><table class="dt" id="t-companies"><thead><tr><th data-sort="text">Company</th><th data-sort="text">Membership</th><th data-sort="text">Province</th><th data-sort="num">Profile</th><th data-sort="date">Year end</th><th></th></tr></thead><tbody>' + rows + "</tbody></table></div>" :
+        '<div class="card empty stack-sm"><h2>No companies yet</h2><p class="hint">Onboard your first client. It takes about three minutes.</p><div class="row"><button class="btn" type="button" data-act="onboard">Onboard a company</button></div></div>') +
+      "</section>";
+  }
+
+  /* ---------- KV: onboard a company, step by step ---------- */
+  var ob = null;
+  var OB_STEPS = ["Company", "Location and contacts", "Membership", "Access", "Review"];
+  var OB_PLANS = [["starter", "Starter", "$79 / month", "3 active projects · 5 people · 5 GB"], ["growth", "Growth", "$199 / month", "Unlimited projects · 25 people · 50 GB · funding guides and training"],
+    ["scale", "Scale", "$449 / month", "Unlimited people · 1 TB · up to 3 related companies"], ["partner", "Partner", "$49 per client / month", "For accounting and SR&ED advisory firms"]];
+  function obField(k, label, type, req, hint, opts) {
+    var v = ob.d[k] == null ? "" : ob.d[k], id = "ob-" + k, inner;
+    if (type === "select") inner = '<select id="' + id + '" data-ob="' + k + '"><option value="">Choose</option>' + opts.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (String(v) === String(o[0]) ? " selected" : "") + ">" + esc(o[1]) + "</option>"; }).join("") + "</select>";
+    else if (type === "textarea") inner = '<textarea id="' + id + '" data-ob="' + k + '" rows="3" placeholder="' + esc(hint || "") + '">' + esc(v) + "</textarea>";
+    else inner = '<input id="' + id + '" data-ob="' + k + '" type="' + type + '" value="' + esc(v) + '">';
+    return '<div class="field' + (type === "textarea" || k === "legal_name" || k === "address" ? " wide" : "") + '"><label for="' + id + '">' + esc(label) + (req ? ' <span class="req">Required</span>' : "") + "</label>" + inner +
+      (hint && type !== "textarea" ? '<p class="hint">' + esc(hint) + "</p>" : "") + '<p class="field-err" id="' + id + '-err" role="alert"></p></div>';
+  }
+  function obBody() {
+    var s = ob.step, d = ob.d;
+    if (s === 0) return '<h2 id="ob-t">Tell us about the company</h2><p class="hint">This becomes their company profile. They can update it later.</p><div class="fields">' +
+      obField("legal_name", "Legal name", "text", true, "As registered with CRA.") + obField("operating_name", "Operating name", "text", false, "Shown at the top left of their portal.") +
+      obField("business_number", "CRA business number", "text", true, "9 digits, optionally followed by RC and 4 digits.") +
+      obField("ccpc", "CCPC?", "select", true, "Canadian-controlled private corporations get the 35% credit.", [["yes", "Yes"], ["no", "No"]]) +
+      obField("industry", "Industry", "select", true, "", INDUSTRIES.map(function (x) { return [x, x]; })) + obField("employees", "Employees", "number", false, "Full-time equivalents, roughly.") + "</div>";
+    if (s === 1) return '<h2 id="ob-t">Where they are and who to talk to</h2><p class="hint">The province sets their provincial credit. The main contact gets account emails.</p><div class="fields">' +
+      obField("province", "Province", "select", true, "Where the R&D is done.", PROVINCE_LIST) + obField("address", "Street address", "text", false) + obField("city", "City", "text", false) + obField("postal_code", "Postal code", "text", false, "A1A 1A1") +
+      obField("contact_name", "Main contact", "text", true) + obField("contact_email", "Contact email", "email", true) + obField("contact_phone", "Contact phone", "tel", false) +
+      obField("advisor_firm", "Accountant or SR&ED advisor", "text", false) + obField("advisor_email", "Advisor email", "email", false) + "</div>";
+    if (s === 2) return '<h2 id="ob-t">Choose their membership</h2><div class="ob-plans" role="radiogroup" aria-label="Membership">' + OB_PLANS.map(function (p) {
+        var on = d.plan === p[0];
+        return '<button type="button" role="radio" aria-checked="' + on + '" class="ob-plan' + (on ? " on" : "") + '" data-act="ob-plan" data-v="' + p[0] + '"><b>' + p[1] + '</b><span class="ob-price">' + p[2] + '</span><span class="small muted">' + p[3] + "</span></button>"; }).join("") + "</div>" +
+      '<div class="fields">' + obField("status", "Billing", "select", true, "A trial needs no payment. Use Active if they pay you outside Stripe.", [["trialing", "14-day free trial"], ["active", "Active"]]) +
+      obField("year_end", "Tax year end", "date", true, "All their deadlines are worked out from it.") + "</div>" +
+      (d.year_end && /^\d{4}-\d{2}-\d{2}$/.test(d.year_end) ? '<p class="wz-note">Their SR&amp;ED claim for that year is due <b>' + longDate(addMonthsCRA(d.year_end, 18)) + "</b>.</p>" : "");
+    if (s === 3) {
+      var lim = (GUIDE && GUIDE.LIMITS[d.plan || "growth"] || {}).people;
+      return '<h2 id="ob-t">Who gets access</h2><p class="hint">Each person signs in with their email and lands in this company only.</p><div class="fields">' +
+        obField("admin_email", "Company admin email", "email", true, "Usually the owner or controller. They manage the team and billing.") +
+        obField("staff", "Staff emails (optional)", "textarea", false, "One per line. They file records and log hours.") +
+        obField("advisor_invite", "Give their advisor read-only access?", "select", false, "Uses the advisor email from step 2. Advisors don't count toward the people limit.", [["no", "No"], ["yes", "Yes"]]) + "</div>" +
+        (isFinite(lim) ? '<p class="hint">' + (OB_PLANS.find(function (p) { return p[0] === d.plan; }) || [0, "This plan"])[1] + " includes " + lim + " people, including the admin.</p>" : "");
+    }
+    var plan = (OB_PLANS.find(function (p) { return p[0] === d.plan; }) || [0, "Growth"])[1], staff = obStaff();
+    var rows = [["Legal name", d.legal_name], ["Operating name", d.operating_name], ["Business number", d.business_number], ["CCPC", d.ccpc === "yes" ? "Yes" : d.ccpc === "no" ? "No" : ""], ["Industry", d.industry], ["Employees", d.employees],
+      ["Province", provinceName(d.province)], ["Address", [d.address, d.city, d.postal_code].filter(Boolean).join(", ")], ["Main contact", [d.contact_name, d.contact_email, d.contact_phone].filter(Boolean).join(" · ")],
+      ["Advisor", [d.advisor_firm, d.advisor_email].filter(Boolean).join(" · ")], ["Membership", plan + (d.status === "trialing" ? ", 14-day free trial" : ", active")], ["Tax year end", d.year_end ? longDate(d.year_end) : ""],
+      ["Company admin", d.admin_email], ["Staff", staff.length ? staff.join(", ") : "None yet"], ["Advisor access", d.advisor_invite === "yes" && d.advisor_email ? "Read-only, " + d.advisor_email : "No"]];
+    return '<h2 id="ob-t">Check and create</h2><p class="hint">' + (MODE === "live" ? "Creating the company sets up its own records, team and binder." : "This is a preview. Nothing is saved in the demo.") + "</p>" +
+      '<dl class="ob-review">' + rows.filter(function (r) { return r[1] !== "" && r[1] != null; }).map(function (r) { return "<dt>" + r[0] + "</dt><dd>" + esc(String(r[1])) + "</dd>"; }).join("") + "</dl>";
+  }
+  function obStaff() { return String(ob.d.staff || "").split(/[\s,;]+/).map(function (x) { return x.trim().toLowerCase(); }).filter(Boolean); }
+  function obRender() {
+    var el = document.getElementById("onboard");
+    if (!el) { el = document.createElement("div"); el.id = "onboard"; el.className = "wizard"; document.body.appendChild(el); }
+    var s = ob.step;
+    el.innerHTML = '<div class="wz-scrim"></div><div class="wz-box ob-box" role="dialog" aria-modal="true" aria-labelledby="ob-t">' +
+      '<div class="wz-top"><ol class="ob-steps">' + OB_STEPS.map(function (t, i) { return '<li class="' + (i === s ? "on" : i < s ? "done" : "") + '"><span>' + (i < s ? "✓" : i + 1) + "</span>" + t + "</li>"; }).join("") + "</ol>" +
+      '<button class="linkbtn" type="button" data-act="ob-close">' + (MODE === "live" ? "Cancel" : "Close preview") + "</button></div>" +
+      '<div class="wz-body">' + obBody() + '</div><div class="wz-foot">' + (s > 0 ? '<button class="btn alt" type="button" data-act="ob-back">Back</button>' : "<span></span>") +
+      '<button class="btn" type="button" data-act="ob-next">' + (s === 4 ? (MODE === "live" ? "Create company" : "Finish preview") : "Continue") + "</button></div></div>";
+    document.body.classList.add("drawer-open");
+    setTimeout(function () { var f = el.querySelector(".wz-body input, .wz-body select"); if (f) f.focus(); }, 40);
+  }
+  function openOnboard() {
+    ob = {step: 0, d: {plan: "growth", status: "trialing", year_end: new Date().getFullYear() + "-12-31", province: "MB", advisor_invite: "no"}};
+    if (MODE !== "live") { var c = company(); ob.d = Object.assign(ob.d, {legal_name: "Prairie Sensor Works Inc. (sample)", operating_name: "Prairie Sensor Works", business_number: "", ccpc: "yes", industry: "Electronics and hardware", contact_name: "", contact_email: ""}); }
+    obRender();
+  }
+  function closeOnboard() { var el = document.getElementById("onboard"); if (el) el.remove(); document.body.classList.remove("drawer-open"); ob = null; }
+  var OB_REQ = [["legal_name", "business_number", "ccpc", "industry"], ["province", "contact_name", "contact_email"], ["status", "year_end"], ["admin_email"], []];
+  function obCheck() {
+    var bad = null;
+    OB_REQ[ob.step].forEach(function (k) {
+      var v = ob.d[k], err = document.getElementById("ob-" + k + "-err");
+      var msg = (v === "" || v == null) ? "This is needed." : !coValid(k === "admin_email" ? "contact_email" : k, k === "business_number" ? String(v).replace(/\s+/g, "") : v) ? (CO_ERR[k] || CO_ERR.contact_email) : "";
+      if (k === "year_end" && v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) msg = "Choose a date.";
+      if (err) err.textContent = msg; if (msg && !bad) bad = document.getElementById("ob-" + k);
+    });
+    ["postal_code", "contact_phone", "advisor_email"].forEach(function (k) {
+      if (ob.step !== 1) return; var err = document.getElementById("ob-" + k + "-err"), v = ob.d[k];
+      var msg = v && !coValid(k, v) ? CO_ERR[k] : ""; if (err) err.textContent = msg; if (msg && !bad) bad = document.getElementById("ob-" + k);
+    });
+    if (ob.step === 3) {
+      var lim = (GUIDE && GUIDE.LIMITS[ob.d.plan] || {}).people, n = 1 + obStaff().length;
+      var badStaff = obStaff().filter(function (x) { return !coValid("contact_email", x); });
+      var e2 = document.getElementById("ob-staff-err");
+      if (badStaff.length) { if (e2) e2.textContent = "Check these emails: " + badStaff.join(", "); bad = bad || document.getElementById("ob-staff"); }
+      else if (isFinite(lim) && n > lim) { if (e2) e2.textContent = "This plan includes " + lim + " people. Remove " + (n - lim) + " or choose a bigger plan."; bad = bad || document.getElementById("ob-staff"); }
+      else if (e2) e2.textContent = "";
+    }
+    if (bad) { bad.focus(); return false; }
+    return true;
+  }
+  async function obCreate() {
+    var d = ob.d, bn = String(d.business_number || "").replace(/\s+/g, "").toUpperCase(), newId = uuid();
+    var row = {id: newId, name: d.operating_name || d.legal_name, tax_year: Number(d.year_end.slice(0, 4)), fiscal_year_end: d.year_end, legal_name: d.legal_name, operating_name: d.operating_name || null,
+      business_number: bn || null, province: d.province, ccpc: d.ccpc === "yes", industry: d.industry || null, employees: d.employees ? Number(d.employees) : null,
+      address: d.address || null, city: d.city || null, postal_code: d.postal_code ? d.postal_code.toUpperCase() : null, contact_name: d.contact_name, contact_email: d.contact_email,
+      contact_phone: d.contact_phone || null, advisor_firm: d.advisor_firm || null, advisor_email: d.advisor_email || null};
+    var rc = await sb.from("organizations").insert(row);
+    if (rc.error) { toast("Could not create the company: " + rc.error.message + (/column/i.test(rc.error.message) ? " Run supabase/company.sql first." : ""), true); return false; }
+    var rb = await sb.from("billing").upsert({org_id: newId, plan: d.plan, status: d.status, trial_ends_at: d.status === "trialing" ? new Date(Date.now() + 14 * 864e5).toISOString() : null}, {onConflict: "org_id"});
+    if (rb.error) toast("Company created, but the membership was not set. Run supabase/company.sql, then set it again.", true);
+    await sb.from("financial_records").insert(DEFAULT_RECORDS.map(function (l) { return {org_id: newId, label: l, status: "missing"}; }));
+    var inv = [{org_id: newId, email: d.admin_email.toLowerCase(), role: "admin", invited_by: me.id}]
+      .concat(obStaff().map(function (e) { return {org_id: newId, email: e, role: "staff", invited_by: me.id}; }))
+      .concat(d.advisor_invite === "yes" && d.advisor_email ? [{org_id: newId, email: d.advisor_email.toLowerCase(), role: "advisor", invited_by: me.id}] : []);
+    var ri = await sb.from("invitations").insert(inv);
+    if (ri.error) toast("Company created. Some invitations failed: " + ri.error.message, true);
+    toast("Onboarded " + (d.operating_name || d.legal_name) + ". Send them the portal link.");
+    kvList = null; await loadMe({id: me.id, email: me.email});
+    location.hash = "overview"; openOrg(newId);
+    return true;
+  }
+  document.addEventListener("input", function (e) { var k = e.target.getAttribute && e.target.getAttribute("data-ob"); if (k && ob) ob.d[k] = e.target.value; });
+  document.addEventListener("change", function (e) {
+    var k = e.target.getAttribute && e.target.getAttribute("data-ob"); if (!k || !ob) return;
+    ob.d[k] = e.target.value;
+    if (k === "year_end") { var keep = document.activeElement && document.activeElement.id; obRender(); var f = keep && document.getElementById(keep); if (f) f.focus(); }
+  });
+  document.addEventListener("click", async function (e) {
+    var b = e.target.closest && e.target.closest("[data-act]"); if (!b) return;
+    var a = b.getAttribute("data-act");
+    if (a === "onboard") { openOnboard(); return; }
+    if (!ob) return;
+    if (a === "ob-close") closeOnboard();
+    else if (a === "ob-back") { ob.step--; obRender(); }
+    else if (a === "ob-plan") { ob.d.plan = b.getAttribute("data-v"); obRender(); }
+    else if (a === "ob-next") {
+      if (!obCheck()) return;
+      if (ob.step < 4) { ob.step++; obRender(); return; }
+      if (MODE !== "live") { var nm = ob.d.operating_name || ob.d.legal_name; closeOnboard(); toast("Preview finished. In your live portal, " + nm + " would now be created and its admin invited."); return; }
+      b.disabled = true; b.textContent = "Creating…";
+      var ok = await obCreate(); if (ok) closeOnboard(); else { b.disabled = false; b.textContent = "Create company"; }
+    }
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && ob) { e.preventDefault(); closeOnboard(); } });
+
+  /* ---------- KV: all client companies ---------- */
+  var kvList = null;
+  async function loadCompanies() {
+    var cols = "id,name,tax_year,created_at," + CO_FIELDS.map(function (f) { return f[0]; }).join(",") + ",fiscal_year_end";
+    var o = await sb.from("organizations").select(cols).order("name");
+    if (o.error) o = await sb.from("organizations").select("id,name,tax_year,created_at").order("name");
+    var b = await sb.from("billing").select("org_id,plan,status,trial_ends_at");
+    var bill = {}; (b.data || []).forEach(function (x) { bill[x.org_id] = x; });
+    kvList = (o.data || []).map(function (x) { x.billing = bill[x.id] || null; return x; });
+    if (route === "companies") render(false);
   }
 
   /* ---------- live-only events ---------- */
@@ -1974,6 +2176,9 @@
   var bellBtn = document.getElementById("bellBtn"), bellPop = document.getElementById("bellPop"), bellN = document.getElementById("bellN");
   function bellItems() {
     var out = gaps().slice(0, 5).map(function (x) { return {t: x.title, d: x.detail, go: x.go, open: x.open, hi: x.sev === "high"}; });
+    nearLimits().forEach(function (x) {
+      out.unshift({t: x.label + ": " + (x.pct >= 100 ? "limit reached" : x.pct + "% used"), d: "Your " + usage().plan + " plan is nearly full. Upgrade for more room.", go: "plans", hi: x.pct >= 100});
+    });
     var due = claimDue(), t2 = addMonthsCRA(yearEnd(), 6), n1 = days(TODAY, t2), n2 = days(TODAY, due);
     if (n1 >= 0 && n1 <= 120) out.unshift({t: "T2 return due in " + plural(n1, "day", "days"), d: "File the SR&ED claim with it on " + longDate(t2) + ".", go: "deadlines", hi: n1 <= 30});
     if (n2 >= 0 && n2 <= 120) out.unshift({t: "Claim due in " + plural(n2, "day", "days"), d: "The final date is " + longDate(due) + ". No extensions.", go: "deadlines", hi: true});

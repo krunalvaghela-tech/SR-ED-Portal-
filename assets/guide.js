@@ -326,10 +326,10 @@
     /* ---------- what each membership includes (one place, used by every page) ---------- */
     var INF = Infinity;
     var LIMITS = {
-      starter: {label: "Starter", people: 5,   projects: 3,   storageGB: 10,   estimator: false, export: false, funding: false, training: false, companies: 1},
-      growth:  {label: "Growth",  people: 25,  projects: INF, storageGB: 100,  estimator: true,  export: true,  funding: true,  training: true,  companies: 1},
-      scale:   {label: "Scale",   people: INF, projects: INF, storageGB: 1000, estimator: true,  export: true,  funding: true,  training: true,  companies: 3},
-      partner: {label: "Partner", people: INF, projects: INF, storageGB: 1000, estimator: true,  export: true,  funding: true,  training: true,  companies: INF}
+      starter: {label: "Starter", people: 5,   projects: 3,   storageGB: 5,   estimator: false, export: false, funding: false, training: false, companies: 1},
+      growth:  {label: "Growth",  people: 25,  projects: INF, storageGB: 50,  estimator: true,  export: true,  funding: true,  training: true,  companies: 1},
+      scale:   {label: "Scale",   people: INF, projects: INF, storageGB: 1024, estimator: true,  export: true,  funding: true,  training: true,  companies: 3},
+      partner: {label: "Partner", people: INF, projects: INF, storageGB: 1024, estimator: true,  export: true,  funding: true,  training: true,  companies: INF}
     };
     function planId() {
       if (h.mode === "live" && h.role === "kv") return "partner";
@@ -483,9 +483,9 @@
     /* ---------- membership ---------- */
     var PLANS = [
       {id: "starter", t: "Starter", m: 79, y: 790, who: "A small team with its first SR&ED project.",
-       f: ["1 company, up to 5 people", "3 active projects", "Evidence locker, 10 GB", "Weekly time and gap alerts", "Eligibility check, SR&ED guide and help answers"], no: ["Credit estimator and binder export", "Other funding programs and application guides", "Live training and onboarding"]},
+       f: ["1 company, up to 5 people", "3 active projects", "Evidence locker, 5 GB", "Weekly time and gap alerts", "Eligibility check, SR&ED guide and help answers"], no: ["Credit estimator and binder export", "Other funding programs and application guides", "Live training and onboarding"]},
       {id: "growth", t: "Growth", m: 199, y: 1990, best: true, who: "Companies claiming every year.",
-       f: ["Up to 25 people", "Unlimited projects", "Evidence locker, 100 GB", "Other funding: eligibility and how to apply", "Onboarding session and monthly SR&ED training", "Credit estimator and binder export", "1 free advisor seat (view only)", "Email support"]},
+       f: ["Up to 25 people", "Unlimited projects", "Evidence locker, 50 GB", "Other funding: eligibility and how to apply", "Onboarding session and monthly SR&ED training", "Credit estimator and binder export", "1 free advisor seat (view only)", "Email support"]},
       {id: "scale", t: "Scale", m: 449, y: 4490, who: "Larger R&D teams and groups of companies.",
        f: ["Unlimited people", "Up to 3 related companies", "Evidence locker, 1 TB", "Other funding: eligibility and how to apply", "Team training, claim walkthrough and funding coaching", "Audit log export", "Priority support"]}
     ];
@@ -539,12 +539,15 @@
         head("Membership", '<span class="soft">Simple plans.</span> Less than a day of consulting, for a whole year.',
           "Every plan includes the full binder, locked evidence and the eligibility tools. Prices are in Canadian dollars, plus tax. Pay yearly and get two months free.") +
         paidFlash() +
-        (live ? "" : '<div class="card row between demo-prev"><div><p class="eyebrow">Demo only</p><p class="small muted">See the portal the way each plan sees it. Try Starter, then open Other funding.</p></div>' +
+        (live ? "" : '<div class="card row between demo-prev"><div><p class="eyebrow">Demo only</p><p class="small muted">See the portal the way each plan sees it. Try Starter, then open Other funding.</p>' +
+          '<p style="margin-top:8px"><button class="btn alt small" type="button" data-g="onboard-preview">Preview company onboarding</button></p></div>' +
           '<div class="seg" role="group" aria-label="Preview as plan">' + PLANS.map(function (p) { var on = (gs.demoPlan || "growth") === p.id;
             return '<button type="button" class="seg-b' + (on ? " on" : "") + '" aria-pressed="' + on + '" data-g="demoplan" data-v="' + p.id + '" data-fk="g-demo-' + p.id + '">' + p.t + "</button>"; }).join("") + "</div></div>") +
         (live && !mgr ? '<p class="badge">Only a company admin can change the plan.</p>' : "") +
         '<div class="card plan-now row between"><div><p class="eyebrow">Current plan</p><p class="plan-now-t">' + nowT + '</p><p class="small muted">' + nowSub + "</p>" + (manage ? '<div class="row" style="margin-top:10px">' + manage + "</div>" : "") + "</div>" +
           '<div class="seg" role="group" aria-label="Billing period"><button type="button" class="seg-b' + (yr ? "" : " on") + '" aria-pressed="' + !yr + '" data-g="bill" data-v="month" data-fk="g-bill-m">Monthly</button><button type="button" class="seg-b' + (yr ? " on" : "") + '" aria-pressed="' + yr + '" data-g="bill" data-v="year" data-fk="g-bill-y">Yearly, 2 months free</button></div></div>' +
+        (h.usageHtml ? '<div class="card stack-sm use-card"><div class="row between"><h2>Your usage</h2><span class="tag">' + limits().label + "</span></div>" + h.usageHtml() +
+          (h.nearLimits().length && planId() !== "scale" && planId() !== "partner" ? '<p class="use-nudge">' + icon("arrow-right") + "You are close to your " + limits().label + " limits. " + (planId() === "starter" ? "Growth gives you 50 GB, 25 people and unlimited projects." : "Scale gives you 1 TB, unlimited people and up to 3 related companies.") + "</p>" : "") + "</div>" : "") +
         '<div class="plans">' + cards + "</div>" +
         '<div class="card stack-sm"><div class="row between"><h2>For accountants and SR&amp;ED advisors</h2><span class="stamp">$49 per client company / month</span></div>' +
           "<p>Manage every client’s binder from one sign-in, with read-only access to records, the audit log and binder exports. Volume pricing from 20 clients. Contact KV WebDesign to set it up.</p></div>" +
@@ -574,6 +577,7 @@
       if (g === "est-reset") { gs.est = null; save(); h.render(); return; }
       if (g === "bill") { gs.bill = v; save(); h.render(); return; }
       if (g === "demoplan") { gs.demoPlan = v; save(); h.render(); return; }
+      if (g === "onboard-preview") { h.openOnboard(); return; }
       if (g === "choose") {
         if (h.mode !== "live") { h.toast("This is the demo, so nothing is charged. Members go to Stripe’s secure checkout here."); return; }
         var url = b.getAttribute("data-url");

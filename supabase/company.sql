@@ -44,9 +44,10 @@ $$;
 create or replace function public.plan_limit(o uuid, kind text) returns int
 language sql stable security definer set search_path = public as $$
   select case public.plan_of(o)
-    when 'starter' then case kind when 'projects' then 3 when 'people' then 5 end
-    when 'growth'  then case kind when 'projects' then null when 'people' then 25 end
-    else null end;   -- null means no limit
+    when 'starter' then case kind when 'projects' then 3    when 'people' then 5  when 'storage_mb' then 5120 end
+    when 'growth'  then case kind when 'projects' then null when 'people' then 25 when 'storage_mb' then 51200 end
+    else case kind when 'storage_mb' then 1048576 end   -- Scale and Partner: 1 TB
+    end;   -- null means no limit
 $$;
 
 -- Active projects
@@ -88,3 +89,30 @@ end $$;
 drop trigger if exists invitations_plan_limit on public.invitations;
 create trigger invitations_plan_limit before insert on public.invitations
   for each row execute function public.enforce_people_limit();
+
+-- ---------- evidence locker size ----------
+-- Starter 5 GB, Growth 50 GB, Scale and Partner 1 TB.
+alter table public.evidence add column if not exists file_size bigint check (file_size is null or file_size >= 0);
+
+create or replace function public.storage_used(o uuid) returns bigint
+language sql stable security definer set search_path = public as $$
+  select coalesce(sum(file_size), 0) from public.evidence where org_id = o;
+$$;
+
+create or replace function public.enforce_storage_limit() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare lim_mb int;
+begin
+  if coalesce(new.file_size, 0) = 0 then return new; end if;
+  lim_mb := public.plan_limit(new.org_id, 'storage_mb');
+  if lim_mb is null then return new; end if;
+  if public.storage_used(new.org_id) + new.file_size > lim_mb::bigint * 1048576 then
+    raise exception 'Your evidence locker is full (% GB on your plan). Upgrade for more space.', lim_mb / 1024 using errcode = 'P0001';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists evidence_storage_limit on public.evidence;
+create trigger evidence_storage_limit before insert on public.evidence
+  for each row execute function public.enforce_storage_limit();
+
