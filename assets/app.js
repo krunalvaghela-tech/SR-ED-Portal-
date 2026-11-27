@@ -204,6 +204,10 @@
   function sevPill(s) {
     return s === "high" ? '<span class="pill crit">Fix first</span>' : '<span class="pill warn">Fix soon</span>';
   }
+  function gapsH1(g) {
+    return g.length ? '<span class="soft">' + plural(g.length, "gap", "gaps") + ".</span> Fix them before a reviewer asks." :
+      '<span class="soft">No gaps.</span> Nothing a reviewer would chase.';
+  }
   function gapItem(x, i) {
     return '<li class="gap rv" style="transition-delay:' + ((i || 0) * 0.06).toFixed(2) + 's" data-cursor="Open">' + sevPill(x.sev) +
       '<div><p class="t">' + esc(x.title) + '</p><p class="d">' + esc(x.detail) + "</p></div>" +
@@ -255,8 +259,8 @@
     var actions = g.slice(0, 4).map(gapItem).join("");
     var first = g[0];
     var heroH1 = g.length ?
-      "Close " + plural(g.length, "gap", "gaps") + " and your " + YEAR + " binder is <span class=\"hot\">ready</span>." :
-      "Your " + YEAR + " binder is <span class=\"hot\">ready</span>.";
+      '<span class="soft">' + plural(g.length, "gap", "gaps") + " to close.</span> Then your " + YEAR + ' binder is <span class="hot">ready</span>.' :
+      '<span class="soft">Nothing missing.</span> Your ' + YEAR + ' binder is <span class="hot">ready</span>.';
     var cta = first ?
       '<a class="btn" href="#' + first.go + '"' + (first.open ? ' data-open="' + first.open + '"' : "") + '>Fix the first gap <span class="arr" aria-hidden="true">&rarr;</span></a>' :
       '<a class="btn" href="#export">Export the binder <span class="arr" aria-hidden="true">&rarr;</span></a>';
@@ -271,9 +275,9 @@
     return '<section class="stack" aria-labelledby="h-main">' +
       '<div class="hero">' +
         '<div class="stack-sm" style="gap:20px">' +
-          '<p class="badge rv in"><span class="dot" aria-hidden="true"></span>Checks ran today, ' + TODAY + "</p>" +
+          '<p class="badge rv in"><span class="dot" aria-hidden="true"></span>Checked today, ' + TODAY + "</p>" +
           '<h1 id="h-main" class="rv">' + heroH1 + "</h1>" +
-          '<p class="lead rv" style="transition-delay:.08s">' + plural(total, "record", "records") + " filed across " + plural(state.projects.length, "project", "projects") + ". Each one is tagged to a person, a project and a locked date.</p>" +
+          '<p class="lead rv" style="transition-delay:.08s">' + plural(total, "record", "records") + " filed across " + plural(state.projects.length, "project", "projects") + ", each dated the day it went in. Close the gaps and hand it over.</p>" +
           '<div class="row rv" style="transition-delay:.16s;margin-top:6px">' + cta + '<a class="btn alt" href="#evidence">File a record</a></div>' +
         "</div>" +
         '<figure class="hero-media rv" style="transition-delay:.12s">' +
@@ -286,15 +290,15 @@
       '<div class="tiles">' +
         '<div class="tile solid rv"><span class="big" data-count>' + total + '</span><span class="label">Records filed</span><span class="sub">Across ' + plural(state.projects.length, "project", "projects") + "</span></div>" +
         '<div class="tile rv" style="transition-delay:.06s"><span class="big" data-count>' + fmt(rdHours()) + '</span><span class="label">R&amp;D hours this week</span><span class="sub">Week of ' + WEEK_OF + ", " + plural(state.people.length, "person", "people") + "</span></div>" +
-        '<div class="tile rv" style="transition-delay:.12s"><span class="big" data-count>' + c.pct + '%</span><span class="label">Weekly entries done</span><span class="sub">' + c.done + " of " + c.total + " over 8 weeks. Target 80%.</span></div>" +
-        '<div class="tile rv' + (g.length ? " alert" : "") + '" style="transition-delay:.18s"><span class="big" data-count>' + g.length + '</span><span class="label">Open gaps</span><span class="sub">' + high + " to fix first, " + (g.length - high) + " to fix soon</span></div>" +
+        '<div class="tile rv" style="transition-delay:.12s"><span class="big" data-count>' + c.pct + '%</span><span class="label">Timesheets done</span><span class="sub">' + c.done + " of " + c.total + " over 8 weeks. Target 80%.</span></div>" +
+        '<div class="tile rv' + (g.length ? " alert" : "") + '" style="transition-delay:.18s"><span class="big" data-count>' + g.length + '</span><span class="label">Gaps to close</span><span class="sub">' + high + " to fix first, " + (g.length - high) + " to fix soon</span></div>" +
       "</div>" +
-      (g.length ? '<div class="stack-sm"><h2 class="rv">What to do next</h2><ul class="gaps">' + actions + "</ul>" +
+      (g.length ? '<div class="stack-sm"><h2 class="rv">Start with these.</h2><ul class="gaps">' + actions + "</ul>" +
                   (g.length > 4 ? '<p><a href="#gaps">' + plural(g.length - 4, "more gap", "more gaps") + " in Gap alerts</a></p>" : "") + "</div>"
                 : '<p class="flash">All checks pass. <a href="#export">Export the binder</a>.</p>') +
       '<div class="stack-sm rv"><h2>Recently filed</h2><div class="marquee"><div class="mq-track">' + mqItems(false) + mqItems(true) + "</div></div></div>" +
-      '<div class="card chart stack-sm rv"><h2>Records filed per month, ' + YEAR + '</h2>' +
-      '<p class="hint">A steady month-by-month trail is what shows the work was documented as it happened.</p>' +
+      '<div class="card chart stack-sm rv"><h2>A steady trail, month by month.</h2>' +
+      '<p class="hint">Reviewers want to see work recorded as it happened, not pieced together at year end.</p>' +
       '<svg viewBox="0 0 ' + W + ' 160" role="img" aria-label="' + esc(aria) + '">' + grid +
       '<line class="axis" x1="0" x2="' + W + '" y1="' + base + '" y2="' + base + '"/>' + bars + "</svg></div>" +
       "</section>";
@@ -316,8 +320,8 @@
         '<div class="body">' + fields + "</div></details>";
     }).join("");
     return '<section class="stack" aria-labelledby="h-main">' +
-      '<div class="stack-sm"><p class="eyebrow">Project register</p><h1 id="h-main">' + plural(state.projects.length, "project", "projects") + " on the register</h1>" +
-      '<p class="lead">Each project keeps its goal, what was uncertain, what you tried and what happened. These prompts record your answers. They do not score them or say whether work qualifies.</p></div>' +
+      '<div class="stack-sm"><p class="eyebrow">Projects</p><h1 id="h-main"><span class="soft">' + plural(state.projects.length, "project", "projects") + ".</span> Four questions each.</h1>" +
+      '<p class="lead">For each project, write down what you set out to do, what you couldn’t predict, what you tried and what happened. Your advisor decides what qualifies. This keeps the story straight.</p></div>' +
       flashHtml() + '<div class="stack-sm">' + cards + "</div>" +
       '<form class="card form" id="f-project" novalidate><h2>Add a project</h2>' +
       '<div class="field"><label for="np-name">Project name</label><input id="np-name" name="name" placeholder="For example: Sensor enclosure heat test" data-fk="np-name"></div>' +
@@ -340,8 +344,8 @@
     var projOpts = '<option value="all">All projects</option>' + options(state.projects, f.project, "id", "name");
     var typeOpts = '<option value="all">All types</option>' + options(TYPES, f.type);
     return '<section class="stack" aria-labelledby="h-main">' +
-      '<div class="stack-sm"><p class="eyebrow">Evidence vault</p><h1 id="h-main">' + plural(state.evidence.length, "record", "records") + " with locked timestamps</h1>" +
-      '<p class="lead">Upload a file, forward an email or snap a photo. Each record is tagged to a project, a person and a date, and the date cannot be changed later.</p></div>' +
+      '<div class="stack-sm"><p class="eyebrow">Evidence</p><h1 id="h-main"><span class="soft">' + plural(state.evidence.length, "record", "records") + ".</span> Dated and locked.</h1>" +
+      '<p class="lead">Upload a file, forward an email or snap a photo. Each one is tagged to a project and a person, and its date can’t be changed later.</p></div>' +
       flashHtml() +
       '<div class="fields">' +
         '<div class="field"><label for="flt-project">Project</label><select id="flt-project" data-filter="project" data-fk="flt-project">' + projOpts + "</select></div>" +
@@ -350,7 +354,7 @@
       '<p class="hint" role="status">Showing ' + rows.length + " of " + state.evidence.length + " records, newest first.</p>" +
       '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Record</th><th>Type</th><th>Project</th><th>Person</th><th>Source</th><th>Timestamp</th></tr></thead><tbody>' +
       (body || '<tr><td colspan="7" class="muted">No records match these filters.</td></tr>') + "</tbody></table></div>" +
-      '<form class="card form" id="f-evidence" novalidate><h2>File a new record</h2>' +
+      '<form class="card form" id="f-evidence" novalidate><h2>File a record.</h2>' +
       '<div class="fields">' +
         '<div class="field wide"><label for="ev-title">What is it?</label><input id="ev-title" name="title" placeholder="For example: Chamber test 5 data" data-fk="ev-title"></div>' +
         '<div class="field wide" id="ev-suggest-row" hidden><p class="hint" id="ev-suggest" aria-live="polite"></p><div><button class="btn small alt" type="button" data-act="use-suggest" data-fk="use-suggest">Use this project</button></div></div>' +
@@ -358,9 +362,9 @@
         '<div class="field"><label for="ev-project">Project</label><select id="ev-project" name="project">' + options(state.projects, state.projects[0] && state.projects[0].id, "id", "name") + "</select></div>" +
         '<div class="field"><label for="ev-person">Person</label><select id="ev-person" name="person">' + options(state.people, "sam", "id", "name") + "</select></div>" +
         '<div class="field"><label for="ev-source">Source</label><select id="ev-source" name="source">' + options(SOURCES, "Upload") + "</select></div>" +
-        '<div class="field wide"><label for="ev-file">File (optional)</label><input id="ev-file" name="file" type="file"><p class="hint">In this demo only the file name is kept.</p></div>' +
+        '<div class="field wide"><label for="ev-file">File (optional)</label><input id="ev-file" name="file" type="file"><p class="hint">' + (MODE === "live" ? "Up to 50 MB. Once filed, it can’t be replaced." : "In the demo, only the file name is kept.") + '</p></div>' +
       "</div>" +
-      '<div class="row"><button class="btn" type="submit" data-fk="ev-add">File record</button><span class="hint">It will be stamped ' + TODAY + ".</span></div></form>" +
+      '<div class="row"><button class="btn" type="submit" data-fk="ev-add">File it <span class="arr" aria-hidden="true">&rarr;</span></button><span class="hint">Dated ' + TODAY + ".</span></div></form>" +
       "</section>";
   }
 
@@ -398,13 +402,13 @@
     });
 
     return '<section class="stack" aria-labelledby="h-main">' +
-      '<div class="stack-sm"><p class="eyebrow">Weekly time</p><h1 id="h-main">Week of ' + WEEK_OF + ": <span id=\"wk-total\">" + fmt(rdHours()) + "</span> R&amp;D hours logged</h1>" +
-      '<p class="lead">Each person gets a reminder on Monday and spends about two minutes splitting last week by project. Totals are checked against payroll so the hours and the pay records agree.</p></div>' +
+      '<div class="stack-sm"><p class="eyebrow">Weekly time</p><h1 id="h-main"><span class="soft">Week of ' + WEEK_OF + ".</span> <span id=\"wk-total\">" + fmt(rdHours()) + "</span> R&amp;D hours.</h1>" +
+      '<p class="lead">Every Monday, each person takes about two minutes to split last week by project. We check the totals against payroll, so the hours and the pay always agree.</p></div>' +
       flashHtml() +
       (state.weekSubmitted ? '<p class="flash">Week of ' + WEEK_OF + " submitted. Edits now show as changes on the record.</p>" : "") +
       '<div class="table-wrap time"><table><thead><tr><th>Person</th>' + head + '<th class="r">Non-R&amp;D</th><th class="r">Total h</th><th class="r">Payroll h</th><th>Check</th></tr></thead><tbody>' + rows + "</tbody></table></div>" +
       '<div class="row"><button class="btn" type="button" data-act="submit-week" data-fk="submit-week">' + (state.weekSubmitted ? "Submit changes" : "Submit week") + "</button></div>" +
-      '<div class="card stack-sm"><div class="row between"><h2>Weekly entries, last 8 weeks</h2><span class="pill ' + (c.pct >= 80 ? "good" : "warn") + '">' + c.pct + "% done, target 80%</span></div>" +
+      '<div class="card stack-sm"><div class="row between"><h2>The last 8 weeks.</h2><span class="pill ' + (c.pct >= 80 ? "good" : "warn") + '">' + c.pct + "% done, target 80%</span></div>" +
       '<div class="legend"><span><span class="sq"></span>Completed</span><span><span class="sq miss"></span>Missed</span></div>' +
       '<div style="overflow-x:auto"><div class="strip">' + strip + "</div></div></div>" +
       "</section>";
@@ -423,12 +427,12 @@
       return "<tr><td>" + esc(g.program) + '</td><td class="r num">' + money.format(g.amount) + "</td><td>" + esc(g.period) + "</td></tr>";
     }).join("");
     return '<section class="stack" aria-labelledby="h-main">' +
-      '<div class="stack-sm"><p class="eyebrow">Financial records and funding</p><h1 id="h-main">' + rc.ok + " of " + state.records.length + " financial records on file</h1>" +
-      '<p class="lead">Pay, receipts and contracts back up the costs. Grants and wage subsidies are logged too, because they reduce what can be claimed. Your advisor applies that rule; this log keeps the facts in one place.</p></div>' +
+      '<div class="stack-sm"><p class="eyebrow">Finance and funding</p><h1 id="h-main"><span class="soft">' + rc.ok + " of " + state.records.length + " records on file.</span> Plus every grant.</h1>" +
+      '<p class="lead">Payroll, receipts and contracts back up your costs. Grants and wage subsidies go here too, because they reduce what you can claim. Your advisor does the math. This keeps the facts in one place.</p></div>' +
       flashHtml() +
       '<div class="grid2">' +
         '<div class="card stack-sm"><h2>Financial records</h2><ul class="records">' + recs + "</ul></div>" +
-        '<div class="card stack-sm"><div class="row between"><h2>Other funding received</h2><span class="stamp">' + money.format(fundingTotal()) + " total</span></div>" +
+        '<div class="card stack-sm"><div class="row between"><h2>Grants and subsidies</h2><span class="stamp">' + money.format(fundingTotal()) + " total</span></div>" +
           '<div class="table-wrap"><table style="min-width:420px"><thead><tr><th>Program</th><th class="r">Amount</th><th>Period</th></tr></thead><tbody>' +
           (fund || '<tr><td colspan="3" class="muted">No funding logged.</td></tr>') + "</tbody></table></div>" +
           '<form class="form" id="f-funding" novalidate><h3>Log funding</h3><div class="fields">' +
@@ -445,11 +449,11 @@
     var g = gaps();
     var list = g.map(gapItem).join("");
     return '<section class="stack" aria-labelledby="h-main">' +
-      '<div class="stack-sm"><p class="eyebrow">Gap alerts</p><h1 id="h-main">' + (g.length ? plural(g.length, "gap", "gaps") + " a reviewer would ask about" : "No gaps found") + "</h1>" +
-      '<p class="lead">Checks run every day: hours against payroll, contracts behind every subcontractor invoice, a recent record for every active project and results on every project sheet.</p></div>' +
+      '<div class="stack-sm"><p class="eyebrow">Gap alerts</p><h1 id="h-main">' + gapsH1(g) + "</h1>" +
+      '<p class="lead">We check every day: hours against payroll, a signed contract behind every subcontractor invoice, recent records on every active project, and results on every project sheet.</p></div>' +
       flashHtml() +
       '<div class="card stack-sm"><label for="threshold">Alert when an active project has no new record for <span id="thr-out" class="num">' + state.threshold + "</span> days</label>" +
-      '<input id="threshold" type="range" min="15" max="90" step="5" value="' + state.threshold + '" data-fk="threshold"><p class="hint">Try 30 days to see one more project flagged.</p></div>' +
+      '<input id="threshold" type="range" min="15" max="90" step="5" value="' + state.threshold + '" data-fk="threshold"><p class="hint">Try 30 days and watch one more project get flagged.</p></div>' +
       '<div id="gap-list">' + (g.length ? '<ul class="gaps">' + list + "</ul>" : '<p class="flash">All checks pass. <a href="#export">Export the binder</a>.</p>') + "</div>" +
       "</section>";
   }
@@ -490,19 +494,19 @@
       gen = '<div class="card stack-sm" role="status"><h2>Sample package built</h2>' +
         '<p>1 cover, ' + plural(state.projects.length, "project sheet", "project sheets") + ", " + c.done + " weekly entries, " + plural(state.evidence.length, "record", "records") + " and " + plural(rc.ok, "financial record", "financial records") + ". " +
         (g.length ? plural(g.length, "open gap is", "open gaps are") + " listed on the cover." : "No open gaps.") + "</p>" +
-        '<p class="hint">Downloads are switched off in this demo. The real portal would produce one indexed folder to hand to your advisor or to CRA.</p></div>';
+        '<p class="hint">Downloads are off for now. Soon this builds one indexed folder you can hand to your advisor or to CRA.</p></div>';
     }
     var copyMsg = state.copied === "ok" ? '<span class="hint" role="status">Index copied.</span>' :
                   state.copied === "fail" ? '<span class="hint" role="status">Copy is not available here. Select the text below instead.</span>' : "";
     return '<section class="stack" aria-labelledby="h-main">' +
-      '<div class="stack-sm"><p class="eyebrow">Review-ready export</p><h1 id="h-main">' + (g.length ? "The " + YEAR + " binder, with " + plural(g.length, "gap", "gaps") + " still open" : "The " + YEAR + " binder is ready") + "</h1>" +
-      '<p class="lead">One folder per tax year, in the order a reviewer reads it. Open gaps are listed on the cover instead of being hidden.</p></div>' +
+      '<div class="stack-sm"><p class="eyebrow">Export</p><h1 id="h-main"><span class="soft">The ' + YEAR + ' binder.</span> ' + (g.length ? plural(g.length, "gap", "gaps") + " still open." : "Ready to hand over.") + "</h1>" +
+      '<p class="lead">One folder per tax year, in the order a reviewer reads it. Open gaps go on the cover, where everyone can see them.</p></div>' +
       flashHtml() +
       '<div class="binder"><div class="spine"><h2>' + YEAR + ' SR&amp;ED Binder</h2><span class="mono small">' + esc(ORG_NAME) + ' &middot; Jan 1 to Dec 31, ' + YEAR + '</span></div><ol>' + items + "</ol></div>" +
       '<div class="row"><button class="btn" type="button" data-act="generate" data-fk="generate">Build sample package</button><button class="btn alt" type="button" data-act="copy" data-fk="copy">Copy index text</button>' + copyMsg + "</div>" +
       gen +
       '<pre class="index" aria-label="Binder index text">' + esc(indexText()) + "</pre>" +
-      '<p class="hint">This binder organizes records. Your accountant or SR&amp;ED advisor decides what to claim; the portal does not decide eligibility.</p>' +
+      '<p class="hint">The portal organizes your records. Your accountant or SR&amp;ED advisor decides what to claim.</p>' +
       "</section>";
   }
 
@@ -639,7 +643,7 @@
       var g = gaps();
       var list = document.getElementById("gap-list");
       var h1 = document.getElementById("h-main");
-      if (h1) h1.textContent = g.length ? plural(g.length, "gap", "gaps") + " a reviewer would ask about" : "No gaps found";
+      if (h1) h1.innerHTML = gapsH1(g);
       if (list) list.innerHTML = g.length ? '<ul class="gaps">' + g.map(function (x) { return gapItem(x).replace(' rv"', ' rv in"'); }).join("") + "</ul>" : '<p class="flash">All checks pass. <a href="#export">Export the binder</a>.</p>';
       renderNav();
       return;
@@ -981,24 +985,24 @@
 
   function signInHtml(sentTo, err, val) {
     if (sentTo) {
-      return '<section class="gate-card" aria-labelledby="g-h"><h1 id="g-h">Check your email</h1>' +
-        '<p class="lead">We sent a sign-in link to <strong>' + esc(sentTo) + '</strong>. Open it on this device, in this browser. It works once and expires in one hour.</p>' +
-        '<p class="hint">Nothing there after a minute? Check your junk folder.</p>' +
+      return '<section class="gate-card" aria-labelledby="g-h"><h1 id="g-h">Check your inbox.</h1>' +
+        '<p class="lead">We sent a sign-in link to <strong>' + esc(sentTo) + '</strong>. Open it on this device, in this browser. It works once and expires in an hour.</p>' +
+        '<p class="hint">Nothing after a minute? Look in your junk folder.</p>' +
         '<div class="row"><button class="btn alt" type="button" data-act="signin-again">Use a different email</button></div></section>';
     }
     return '<section class="gate-card" aria-labelledby="g-h">' +
-      '<h1 id="g-h">Sign in to SR&amp;ED Records</h1>' +
-      '<p class="lead">Enter your work email. We will send you a link that signs you in. No password needed.</p>' +
+      '<h1 id="g-h"><span class="soft">Welcome back.</span> Sign in with your email.</h1>' +
+      '<p class="lead">No password to remember. We’ll email you a link, and one click gets you in.</p>' +
       (err ? '<p class="flash bad" role="alert">' + esc(err) + '</p>' : "") +
       '<form class="form" id="f-signin" novalidate><div class="field"><label for="si-email">Work email</label>' +
       '<input id="si-email" name="email" type="email" autocomplete="email" inputmode="email" required placeholder="name@company.ca" value="' + esc(val || "") + '"></div>' +
-      '<div class="row"><button class="btn" type="submit">Email me a sign-in link <span class="arr" aria-hidden="true">&rarr;</span></button></div></form>' +
-      '<p class="hint">Just looking? <a href="?demo=1" data-act="try-demo">Try the demo with sample data</a>.</p></section>';
+      '<div class="row"><button class="btn" type="submit">Email me a link <span class="arr" aria-hidden="true">&rarr;</span></button></div></form>' +
+      '<p class="hint">Just looking around? <a href="?demo=1" data-act="try-demo">Try the demo with sample data</a>.</p></section>';
   }
 
   function noCompanyHtml() {
-    return '<section class="gate-card" aria-labelledby="g-h"><h1 id="g-h">You are signed in</h1>' +
-      '<p class="lead">Your email, <strong>' + esc(me.email) + '</strong>, is not linked to a company yet. Ask your company admin to invite this exact address, then reload this page.</p>' +
+    return '<section class="gate-card" aria-labelledby="g-h"><h1 id="g-h"><span class="soft">You’re in.</span> Almost.</h1>' +
+      '<p class="lead">Your email, <strong>' + esc(me.email) + '</strong>, isn’t linked to a company yet. Ask your company admin to invite this exact address, then reload the page.</p>' +
       '<div class="row"><button class="btn alt" type="button" data-act="reload">Reload</button><button class="btn alt" type="button" data-act="signout">Sign out</button></div></section>';
   }
 
@@ -1088,7 +1092,7 @@
   }
 
   async function openOrg(id) {
-    showGate('<section class="gate-card"><p class="lead" role="status">Loading your records...</p></section>');
+    showGate('<section class="gate-card"><p class="lead" role="status">Pulling up your records...</p></section>');
     try {
       await loadOrg(id);
     } catch (e) {
@@ -1148,15 +1152,15 @@
         '<button class="btn small alt" type="button" data-act="retire-person" data-id="' + p.id + '">Remove from timesheet</button></li>';
     }).join("") || '<li class="muted">Nobody on the timesheet yet.</li>';
     return '<section class="stack" aria-labelledby="h-main">' +
-      '<div class="stack-sm"><p class="eyebrow">Team</p><h1 id="h-main">Who can sign in to ' + esc(ORG_NAME) + "</h1>" +
-      '<p class="lead">Invite people by email. They get access the first time they sign in with that address.</p></div>' +
+      '<div class="stack-sm"><p class="eyebrow">Team</p><h1 id="h-main"><span class="soft">Your team.</span> Who can sign in.</h1>' +
+      '<p class="lead">Invite people by email. They get in the first time they sign in with that address.</p></div>' +
       '<div class="grid2">' +
         '<div class="card stack-sm"><h2>Members</h2><ul class="records">' + mem + "</ul>" +
           (inv ? '<h3>Waiting to sign in</h3><ul class="records">' + inv + "</ul>" : "") + "</div>" +
-        '<form class="card form" id="f-invite" novalidate><h2>Invite someone</h2>' +
+        '<form class="card form" id="f-invite" novalidate><h2>Invite someone.</h2>' +
           '<div class="field"><label for="iv-email">Email</label><input id="iv-email" name="email" type="email" autocomplete="off" placeholder="name@company.ca"></div>' +
           '<div class="field"><label for="iv-role">Role</label><select id="iv-role" name="role">' + roleOptions("staff") + "</select>" +
-          '<p class="hint">Staff file records and hours. Company admins also manage the team. Advisors can only read.</p></div>' +
+          '<p class="hint">Staff file records and hours. Company admins also run the team. Advisors can look but not change.</p></div>' +
           '<div class="row"><button class="btn" type="submit">Send invite</button></div>' +
           '<p class="hint">Then send them the portal link yourself: ' + esc(location.origin + location.pathname) + "</p></form>" +
       "</div>" +
@@ -1177,8 +1181,8 @@
         (o.id === orgId ? '<span class="pill good">Open now</span>' : '<button class="btn small alt" type="button" data-act="open-org" data-id="' + o.id + '">Open</button>') + "</li>";
     }).join("") || '<li class="muted">No companies yet. Add the first one.</li>';
     return '<section class="stack" aria-labelledby="h-main">' +
-      '<div class="stack-sm"><p class="eyebrow">Companies</p><h1 id="h-main">' + plural(myOrgs.length, "client company", "client companies") + "</h1>" +
-      '<p class="lead">Each company has its own records, team and binder. Only KV admins see this list.</p></div>' +
+      '<div class="stack-sm"><p class="eyebrow">Companies</p><h1 id="h-main"><span class="soft">' + plural(myOrgs.length, "client company", "client companies") + ".</span> One binder each.</h1>" +
+      '<p class="lead">Each company gets its own records, team and binder. Only KV admins see this list.</p></div>' +
       '<div class="grid2"><div class="card stack-sm"><h2>All companies</h2><ul class="records">' + list + "</ul></div>" +
       '<form class="card form" id="f-company" novalidate><h2>Add a company</h2>' +
         '<div class="field"><label for="co-name">Legal name</label><input id="co-name" name="name" placeholder="For example: Prairie Sensor Works Inc."></div>' +
