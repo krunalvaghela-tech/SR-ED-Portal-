@@ -13,37 +13,51 @@
 </head>
 <body>
 <span id="top-sentinel" aria-hidden="true"></span>
-<div class="banner" role="note">
-  <span><strong>Demo with sample data.</strong> Every business, person and amount here is made up. Changes are not saved.</span>
-  <button type="button" data-act="reset" data-fk="reset">Reset sample data</button>
-</div>
-
-<header class="top">
-  <a class="brand" href="#overview" aria-label="SR&amp;ED Records, overview">
-    <span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="7" y="4" width="18" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M12 12h8M12 17h8M12 22h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></span>
-    <span>SR&amp;ED Records</span>
-  </a>
-  <div class="meta">
-    <span class="stamp">Tallgrass Robotics Ltd. (sample)</span>
-    <span class="stamp">Tax year 2026</span>
-  </div>
-</header>
-
 <div id="gate" class="gate" hidden></div>
 
-<div class="shell">
-  <nav class="tabs" id="nav" aria-label="Binder sections"></nav>
-  <main id="app" tabindex="-1"></main>
+<div class="app" id="appShell" data-side="open">
+  <aside class="side" id="side" aria-label="Portal navigation">
+    <div class="side-head">
+      <a class="brand" href="#overview" aria-label="SR&amp;ED Records, overview">
+        <span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="7" y="4" width="18" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M12 12h8M12 17h8M12 22h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+        <span class="brand-name">SR&amp;ED Records</span>
+      </a>
+      <button class="icon-btn side-toggle" id="sideToggle" type="button" aria-controls="side" aria-expanded="true" title="Hide sidebar (Ctrl or Cmd + B)">
+        <span class="sr">Hide sidebar</span><span data-icon="sidebar-simple"></span>
+      </button>
+    </div>
+    <div class="side-org" id="sideOrg"></div>
+    <nav class="tabs" id="nav" aria-label="Binder sections"></nav>
+    <div class="side-foot meta" id="sideMeta"></div>
+  </aside>
+  <div class="scrim" id="scrim" hidden></div>
+
+  <div class="main-col">
+    <div class="banner" role="note">
+      <span><strong>Demo with sample data.</strong> Every business, person and amount here is made up. Changes are not saved.</span>
+      <button type="button" data-act="reset" data-fk="reset">Reset sample data</button>
+    </div>
+    <header class="topbar">
+      <button class="icon-btn open-side" id="openSide" type="button" aria-controls="side" title="Show sidebar (Ctrl or Cmd + B)">
+        <span class="sr">Show sidebar</span><span data-icon="sidebar-simple"></span>
+      </button>
+      <div class="crumbs"><span id="crumbOrg"></span><span class="sep" aria-hidden="true">/</span><strong id="crumbPage">Overview</strong></div>
+      <div class="top-chips" id="topChips"></div>
+    </header>
+    <div class="shell">
+      <main id="app" tabindex="-1"></main>
+    </div>
+    <footer class="foot">
+      <p>This portal organizes records. It does not decide whether work qualifies for SR&amp;ED or prepare a claim: your accountant or SR&amp;ED advisor makes those calls. Project suggestions in this demo use simple keyword matching; the real product would read uploads with AI. All businesses, people and amounts shown are made up.</p>
+    </footer>
+  </div>
 </div>
 
 <button class="to-top" id="toTop" type="button" aria-label="Back to top">&uarr;</button>
 
-<footer class="foot">
-  <p>This portal organizes records. It does not decide whether work qualifies for SR&amp;ED or prepare a claim: your accountant or SR&amp;ED advisor makes those calls. Project suggestions in this demo use simple keyword matching; the real product would read uploads with AI. All businesses, people and amounts shown are made up.</p>
-</footer>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
 <script src="config.js" defer></script>
+<script src="assets/icons.js" defer></script>
 <script src="assets/app.js" defer></script>
 </body>
 </html>

@@ -18,16 +18,27 @@
     ["projects","01","Projects"],
     ["evidence","02","Evidence"],
     ["time","03","Weekly time"],
-    ["funding","04","Funding and finance"],
+    ["funding","04","Finance and funding"],
     ["gaps","05","Gap alerts"],
     ["export","06","Export"]
   ];
+  // The last three map to the project description on CRA form T661 (Part 2, Section B).
   var FIELDS = [
-    {key:"objective", q:"What were you trying to achieve?"},
-    {key:"uncertainty", q:"What could you not predict at the start, even with existing knowledge?"},
-    {key:"hypothesis", q:"What did you try, and what did you expect to happen?"},
-    {key:"results", q:"What happened? Add dates and numbers."}
+    {key:"objective", q:"What were you trying to achieve?", tag:"Goal", limit:0},
+    {key:"uncertainty", q:"What technological uncertainty could you not resolve with existing knowledge?", tag:"T661 line 242", limit:350},
+    {key:"hypothesis", q:"What work did you do to overcome it? Include what you tried and expected.", tag:"T661 line 244", limit:700},
+    {key:"results", q:"What advancement did you achieve, or try to achieve? Add dates and numbers.", tag:"T661 line 246", limit:350}
   ];
+  var NAV_ICON = {overview:"squares-four", projects:"flask", evidence:"files", time:"clock", funding:"receipt",
+                  gaps:"warning-circle", export:"books", team:"users", companies:"buildings"};
+  var NAV_GROUP = {overview:"", projects:"Records", gaps:"Review", team:"Admin"};
+  function icon(name, cls) {
+    var p = (window.SRED_ICONS || {})[name];
+    return p ? '<svg class="ico' + (cls ? " " + cls : "") + '" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">' + p + "</svg>" : "";
+  }
+  function words(s) { var t = String(s || "").trim(); return t ? t.split(/\s+/).length : 0; }
+  function claimDue() { return (Number(YEAR) + 2) + "-06-30"; }   // 18 months after a Dec 31 year end
+  function longDate(iso) { return MONTHS[Number(iso.slice(5, 7)) - 1] + " " + Number(iso.slice(8, 10)) + ", " + iso.slice(0, 4); }
   var KEYWORDS = {
     p1: ["mesh","slot","radio","delivery","packet","duty","network"],
     p2: ["grain","camera","image","lighting","bin","vision","model v"],
@@ -293,6 +304,8 @@
         '<div class="tile rv" style="transition-delay:.12s"><span class="big" data-count>' + c.pct + '%</span><span class="label">Timesheets done</span><span class="sub">' + c.done + " of " + c.total + " over 8 weeks. Target 80%.</span></div>" +
         '<div class="tile rv' + (g.length ? " alert" : "") + '" style="transition-delay:.18s"><span class="big" data-count>' + g.length + '</span><span class="label">Gaps to close</span><span class="sub">' + high + " to fix first, " + (g.length - high) + " to fix soon</span></div>" +
       "</div>" +
+      '<div class="dash-row">' + readinessHtml() + timelineHtml() + "</div>" +
+      projectTableHtml() +
       (g.length ? '<div class="stack-sm"><h2 class="rv">Start with these.</h2><ul class="gaps">' + actions + "</ul>" +
                   (g.length > 4 ? '<p><a href="#gaps">' + plural(g.length - 4, "more gap", "more gaps") + " in Gap alerts</a></p>" : "") + "</div>"
                 : '<p class="flash">All checks pass. <a href="#export">Export the binder</a>.</p>') +
@@ -304,13 +317,74 @@
       "</section>";
   }
 
+  /* ---------- overview panels ---------- */
+  function readiness() {
+    var checks = [];
+    state.projects.forEach(function (pr) {
+      FIELDS.forEach(function (f) { checks.push({ok: !!String(pr[f.key] || "").trim(), area: "Project sheets"}); });
+      var last = lastEvidence(pr.id);
+      checks.push({ok: !!last && days(last, TODAY) <= state.threshold, area: "Recent records"});
+    });
+    state.people.forEach(function (p) { checks.push({ok: Math.abs(personTotal(p.id) - p.payroll) <= 1, area: "Timesheets"}); });
+    state.records.forEach(function (r) { checks.push({ok: r.status !== "missing", area: "Financial records"}); });
+    var areas = {};
+    checks.forEach(function (c) { var a = areas[c.area] || (areas[c.area] = {ok: 0, all: 0}); a.all++; if (c.ok) a.ok++; });
+    var ok = checks.filter(function (c) { return c.ok; }).length;
+    return {pct: checks.length ? Math.round(ok / checks.length * 100) : 100, ok: ok, all: checks.length, areas: areas};
+  }
+  function readinessHtml() {
+    var r = readiness(), R = 52, C = 2 * Math.PI * R, off = C * (1 - r.pct / 100);
+    var rows = Object.keys(r.areas).map(function (k) {
+      var a = r.areas[k], done = a.ok === a.all;
+      return '<li><span class="ar-name">' + (done ? icon("check-circle", "ok") : '<span class="ar-dot" aria-hidden="true"></span>') + esc(k) + '</span><span class="num">' + a.ok + "/" + a.all + "</span></li>";
+    }).join("");
+    return '<div class="card ready rv"><div class="ring" role="img" aria-label="Binder ' + r.pct + ' percent ready">' +
+      '<svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="' + R + '"/><circle class="ring-fg" cx="60" cy="60" r="' + R + '" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" style="--c:' + C.toFixed(1) + '"/></svg>' +
+      '<span class="ring-num"><b data-count>' + r.pct + '%</b><small>ready</small></span></div>' +
+      '<div class="ready-body"><h2>Binder readiness</h2><p class="hint">' + r.ok + " of " + r.all + ' checks pass.</p><ul class="areas">' + rows + "</ul></div></div>";
+  }
+  function timelineHtml() {
+    var start = YEAR + "-01-01", end = YEAR + "-12-31", due = claimDue();
+    var span = days(start, due), pos = function (d) { return Math.max(0, Math.min(100, days(start, d) / span * 100)); };
+    var left = days(TODAY, due);
+    var stop = function (d, label, cls) {
+      return '<li class="ms ' + (cls || "") + '" style="--x:' + pos(d).toFixed(2) + '%"><span class="ms-dot" aria-hidden="true"></span><b>' + label + "</b><span>" + longDate(d) + "</span></li>";
+    };
+    return '<div class="card tl rv" style="transition-delay:.06s"><div class="row between"><h2>Claim timeline</h2>' +
+      '<span class="chip strong">' + (left >= 0 ? plural(left, "day", "days") + " to file" : "Deadline passed") + "</span></div>" +
+      '<p class="hint">The T661 is due 18 months after the tax year ends. Records are strongest when they are written during the year, not after it.</p>' +
+      '<div class="track" aria-hidden="true"><span class="track-done" style="width:' + pos(TODAY).toFixed(2) + '%"></span><span class="track-year" style="width:' + pos(end).toFixed(2) + '%"></span>' +
+        '<span class="today" style="left:' + pos(TODAY).toFixed(2) + '%"><span>Today</span></span></div>' +
+      '<ol class="milestones">' + stop(start, "Tax year starts") + stop(end, "Year end", "mid") + stop(due, "Claim due", "end") + "</ol></div>";
+  }
+  function projectTableHtml() {
+    if (!state.projects.length) return '<div class="card rv empty"><h2>No projects yet.</h2><p class="hint">Add your first project and the binder starts filling in.</p><p><a class="btn small" href="#projects">Add a project</a></p></div>';
+    var rows = state.projects.map(function (pr) {
+      var n = state.evidence.filter(function (e) { return e.project === pr.id; }).length;
+      var hrs = state.people.reduce(function (s, p) { return s + (Number((state.hours[p.id] || {})[pr.id]) || 0); }, 0);
+      var lines = FIELDS.filter(function (f) { return f.limit && String(pr[f.key] || "").trim(); }).length;
+      var last = lastEvidence(pr.id);
+      var dots = FIELDS.filter(function (f) { return f.limit; }).map(function (f) {
+        return '<span class="ldot' + (String(pr[f.key] || "").trim() ? " on" : "") + '" title="' + f.tag + '"></span>';
+      }).join("");
+      return '<tr data-cursor="Open"><td><a class="row-link" href="#projects" data-open="' + pr.id + '">' + icon("flask") + esc(pr.name) + "</a></td>" +
+        '<td><span class="ldots" aria-label="' + lines + ' of 3 T661 lines written">' + dots + "</span> " + lines + "/3</td>" +
+        '<td class="r num">' + n + '</td><td class="r num">' + fmt(hrs) + "</td><td>" + (last ? '<span class="stamp">' + last + "</span>" : '<span class="muted">None yet</span>') + "</td></tr>";
+    }).join("");
+    return '<div class="stack-sm rv"><div class="row between"><h2>Projects at a glance.</h2><a href="#projects">Open projects</a></div>' +
+      '<div class="table-wrap"><table class="glance"><thead><tr><th>Project</th><th>T661 lines</th><th class="r">Records</th><th class="r">Hours this week</th><th>Last record</th></tr></thead><tbody>' + rows + "</tbody></table></div></div>";
+  }
+
   function vProjects() {
     var cards = state.projects.map(function (pr) {
       var n = state.evidence.filter(function (e) { return e.project === pr.id; }).length;
       var last = lastEvidence(pr.id), a = answered(pr);
       var fields = FIELDS.map(function (f) {
         var id = "pf-" + pr.id + "-" + f.key;
-        return '<div class="field"><label for="' + id + '">' + esc(f.q) + '</label><textarea id="' + id + '" rows="3" data-pid="' + pr.id + '" data-key="' + f.key + '">' + esc(pr[f.key]) + "</textarea></div>";
+        var w = words(pr[f.key]);
+        return '<div class="field t661"><div class="t661-head"><span class="t661-tag">' + f.tag + "</span>" +
+          (f.limit ? '<span class="wc' + (w > f.limit ? " over" : "") + '" id="wc-' + id + '">' + w + " / " + f.limit + " words</span>" : "") + "</div>" +
+          '<label for="' + id + '">' + esc(f.q) + '</label><textarea id="' + id + '" rows="' + (f.limit > 400 ? 5 : 3) + '" data-pid="' + pr.id + '" data-key="' + f.key + '" data-limit="' + f.limit + '">' + esc(pr[f.key]) + "</textarea></div>";
       }).join("");
       return '<details class="card proj" data-det="' + pr.id + '"' + (state.open[pr.id] ? " open" : "") + ">" +
         "<summary>" + ICON_CHEV + '<span class="sname">' + esc(pr.name) + "</span>" +
@@ -320,8 +394,8 @@
         '<div class="body">' + fields + "</div></details>";
     }).join("");
     return '<section class="stack" aria-labelledby="h-main">' +
-      '<div class="stack-sm"><p class="eyebrow">Projects</p><h1 id="h-main"><span class="soft">' + plural(state.projects.length, "project", "projects") + ".</span> Four questions each.</h1>" +
-      '<p class="lead">For each project, write down what you set out to do, what you couldn’t predict, what you tried and what happened. Your advisor decides what qualifies. This keeps the story straight.</p></div>' +
+      '<div class="stack-sm"><p class="eyebrow">Projects</p><h1 id="h-main"><span class="soft">' + plural(state.projects.length, "project", "projects") + ".</span> Written the way CRA reads them.</h1>" +
+      '<p class="lead">Three of the four answers line up with the project description on form T661, with the same word limits. Write as the work happens and your advisor starts from real notes, not memory.</p></div>' +
       flashHtml() + '<div class="stack-sm">' + cards + "</div>" +
       '<form class="card form" id="f-project" novalidate><h2>Add a project</h2>' +
       '<div class="field"><label for="np-name">Project name</label><input id="np-name" name="name" placeholder="For example: Sensor enclosure heat test" data-fk="np-name"></div>' +
@@ -520,11 +594,21 @@
   function renderNav() {
     var n = gaps().length;
     nav.innerHTML = NAV.map(function (it) {
-      return '<a class="tab" href="#' + it[0] + '"' + (route === it[0] ? ' aria-current="page"' : "") + '><span class="n">' + it[1] + "</span><span>" + esc(it[2]) + "</span>" +
+      var grp = NAV_GROUP[it[0]];
+      return (grp ? '<p class="nav-group">' + grp + "</p>" : "") +
+        '<a class="tab" href="#' + it[0] + '" title="' + esc(it[2]) + '"' + (route === it[0] ? ' aria-current="page"' : "") + ">" +
+        icon(NAV_ICON[it[0]]) + '<span class="tab-label">' + esc(it[2]) + "</span>" +
         (it[0] === "gaps" && n ? '<span class="count" aria-label="' + plural(n, "open gap", "open gaps") + '">' + n + "</span>" : "") + "</a>";
     }).join("");
-    var cur = nav.querySelector('[aria-current="page"]');
-    if (cur && nav.scrollWidth > nav.clientWidth + 4) nav.scrollLeft = Math.max(0, cur.offsetLeft - 20);
+    var cur = NAV.find(function (x) { return x[0] === route; });
+    var cp = document.getElementById("crumbPage"), co = document.getElementById("crumbOrg");
+    if (cp) cp.textContent = cur ? cur[2] : "";
+    if (co) co.textContent = ORG_NAME.replace(" (sample)", "");
+    var chips = document.getElementById("topChips");
+    if (chips) chips.innerHTML = '<span class="chip">' + icon("calendar-blank") + "Tax year " + YEAR + "</span>" +
+      '<span class="chip strong" title="T661 filing deadline: 18 months after a December 31 year end">' + icon("clock") + "Claim due " + longDate(claimDue()) + "</span>";
+    var so = document.getElementById("sideOrg");
+    if (so && MODE === "demo") so.innerHTML = '<p class="org-name">' + esc(ORG_NAME) + '</p><p class="org-sub">Tax year ' + YEAR + "</p>";
   }
 
   function render(moveFocus) {
@@ -616,6 +700,8 @@
     if (t.matches("textarea[data-key]")) {
       var pr = state.projects.find(function (p) { return p.id === t.getAttribute("data-pid"); });
       if (pr) { pr[t.getAttribute("data-key")] = t.value; persist.projectField(pr.id, t.getAttribute("data-key"), t.value); }
+      var lim = Number(t.getAttribute("data-limit")), wcEl = document.getElementById("wc-" + t.id);
+      if (lim && wcEl) { var wn = words(t.value); wcEl.textContent = wn + " / " + lim + " words"; wcEl.classList.toggle("over", wn > lim); }
       renderNav();
       return;
     }
@@ -743,6 +829,35 @@
     }
   });
 
+  /* ---------- collapsible sidebar (rail on desktop, drawer on phones) ---------- */
+  var appShell = document.getElementById("appShell");
+  var scrim = document.getElementById("scrim");
+  var mqNarrow = window.matchMedia("(max-width: 959px)");
+  function sidePref() { try { return localStorage.getItem("sred-side"); } catch (e) { return null; } }
+  function setSide(open, remember) {
+    appShell.setAttribute("data-side", open ? "open" : "closed");
+    var st = document.getElementById("sideToggle"); if (st) st.setAttribute("aria-expanded", String(open));
+    var os = document.getElementById("openSide"); if (os) os.setAttribute("aria-expanded", String(open));
+    scrim.hidden = !(open && mqNarrow.matches);
+    if (remember && !mqNarrow.matches) { try { localStorage.setItem("sred-side", open ? "open" : "closed"); } catch (e) {} }
+  }
+  function initSide() {
+    [].forEach.call(document.querySelectorAll("[data-icon]"), function (el) { el.outerHTML = icon(el.getAttribute("data-icon")); });
+    setSide(mqNarrow.matches ? false : sidePref() !== "closed", false);
+  }
+  document.getElementById("sideToggle").addEventListener("click", function () { setSide(appShell.getAttribute("data-side") !== "open", true); });
+  document.getElementById("openSide").addEventListener("click", function () { setSide(true, true); });
+  scrim.addEventListener("click", function () { setSide(false, false); });
+  nav.addEventListener("click", function (e) { if (mqNarrow.matches && e.target.closest("a")) setSide(false, false); });
+  document.addEventListener("keydown", function (e) {
+    if ((e.metaKey || e.ctrlKey) && (e.key === "b" || e.key === "B") && !(e.target.closest && e.target.closest("input,textarea,select"))) { e.preventDefault(); setSide(appShell.getAttribute("data-side") !== "open", true); }
+    if (e.key === "Escape" && mqNarrow.matches && appShell.getAttribute("data-side") === "open") setSide(false, false);
+  });
+  (mqNarrow.addEventListener ? mqNarrow.addEventListener.bind(mqNarrow, "change") : mqNarrow.addListener.bind(mqNarrow))(function () {
+    setSide(mqNarrow.matches ? false : sidePref() !== "closed", false);
+  });
+  initSide();
+
   /* ---------- motion (ported from the KV WebDesign site) ---------- */
   var firstAnim = false;
   var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -854,9 +969,9 @@
   var CFG = window.SRED_CONFIG || {};
   var sb = null, me = null, myOrgs = [], orgId = null, entryIds = {};
   var gate = document.getElementById("gate");
-  var shell = document.querySelector(".shell");
+  var shell = document.getElementById("appShell");
   var banner = document.querySelector(".banner");
-  var meta = document.querySelector(".top .meta");
+  var meta = document.getElementById("sideMeta");
   var DEFAULT_RECORDS = [
     "Payroll register", "Year-end T4 summary", "Material receipts",
     "Subcontractor contracts (signed)", "Subcontractor invoices", "General ledger report"
@@ -978,7 +1093,8 @@
   function showGate(html) {
     shell.hidden = true; banner.hidden = true;
     document.querySelector(".foot").hidden = true;
-    gate.hidden = false; gate.innerHTML = html;
+    gate.hidden = false;
+    gate.innerHTML = '<div class="gate-brand"><span class="brand-mark">' + document.querySelector(".brand-mark").innerHTML + '</span><span>SR&amp;ED Records</span></div>' + html;
     var f = gate.querySelector("input, button, a"); if (f) f.focus();
   }
   function hideGate() { gate.hidden = true; gate.innerHTML = ""; shell.hidden = false; document.querySelector(".foot").hidden = false; }
@@ -1078,10 +1194,16 @@
     var sw = myOrgs.length > 1 ?
       '<label class="sr" for="org-switch">Company</label><select id="org-switch" class="org-switch">' +
         myOrgs.map(function (o) { return '<option value="' + o.id + '"' + (o.id === orgId ? " selected" : "") + ">" + esc(o.name) + "</option>"; }).join("") + "</select>" :
-      '<span class="stamp">' + esc(ORG_NAME) + "</span>";
+      '<p class="org-name">' + esc(ORG_NAME) + "</p>";
     var roleName = {kv: "KV admin", admin: "Company admin", staff: "Staff", advisor: "Advisor"}[ROLE] || ROLE;
-    meta.innerHTML = sw + '<span class="stamp">' + esc(me.email) + " &middot; " + roleName + "</span>" +
-      '<button class="btn alt small" type="button" data-act="signout">Sign out</button>';
+    document.getElementById("sideOrg").innerHTML = sw + '<p class="org-sub">Tax year ' + YEAR + "</p>";
+    meta.innerHTML = userBlock(me.email, roleName);
+  }
+
+  function userBlock(email, roleName) {
+    return '<div class="user"><span class="avatar" aria-hidden="true">' + esc(email.charAt(0).toUpperCase()) + "</span>" +
+      '<span class="user-text"><span class="user-mail">' + esc(email) + '</span><span class="user-role">' + esc(roleName) + "</span></span>" +
+      '<button class="icon-btn" type="button" data-act="signout" title="Sign out"><span class="sr">Sign out</span>' + icon("sign-out") + "</button></div>";
   }
 
   function setNav() {
@@ -1116,7 +1238,8 @@
     await openOrg(myOrgs.some(function (o) { return o.id === last; }) ? last : myOrgs[0].id);
   }
   function renderHeaderKvOnly() {
-    meta.innerHTML = '<span class="stamp">' + esc(me.email) + ' &middot; KV admin</span><button class="btn alt small" type="button" data-act="signout">Sign out</button>';
+    document.getElementById("sideOrg").innerHTML = '<p class="org-name">KV WebDesign</p><p class="org-sub">All client companies</p>';
+    meta.innerHTML = userBlock(me.email, "KV admin");
   }
 
   /* ---------- team and companies views ---------- */
@@ -1264,6 +1387,7 @@
     MODE = "demo"; ROLE = "admin";
     if (data && data.state) state = data.state;
     if (liveReady() && banner) banner.querySelector("span").insertAdjacentHTML("beforeend", ' <a href="./" data-act="exit-demo" style="color:inherit">Sign in instead</a>');
+    meta.innerHTML = '<div class="user"><span class="avatar" aria-hidden="true">T</span><span class="user-text"><span class="user-mail">Demo account</span><span class="user-role">Company admin (sample)</span></span></div>';
     route = routeFromHash();
     firstAnim = true;
     render(false);
