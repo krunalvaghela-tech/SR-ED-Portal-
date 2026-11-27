@@ -403,31 +403,65 @@
       {id: "scale", t: "Scale", m: 449, y: 4490, who: "Larger R&D teams and groups of companies.",
        f: ["Unlimited people", "Up to 3 related companies", "Evidence locker, 1 TB", "Audit log export", "Onboarding call", "Priority support"]}
     ];
+    var STATUS = {trialing: "free trial", active: "active", past_due: "payment overdue", unpaid: "unpaid", canceled: "cancelled",
+                  incomplete: "payment not finished", incomplete_expired: "payment not finished", paused: "paused"};
+    function planState() {
+      if (h.mode !== "live") return {plan: "growth", status: "trialing", trialLeft: 14, sample: true};
+      var b = h.billing;
+      if (!b) return {plan: null, status: null};
+      var left = b.trial_ends_at ? Math.max(0, Math.ceil((Date.parse(b.trial_ends_at) - Date.now()) / 86400000)) : null;
+      return {plan: b.plan, status: b.status, period: b.period, trialLeft: left, end: b.current_period_end, cancelling: b.cancel_at_period_end};
+    }
+    function link(plan, period) { var l = (h.stripe.links || {})[plan + "_" + period]; return /^https:\/\/(buy|checkout)\.stripe\.com\//.test(l || "") ? l : ""; }
+    function portalLink() { var p = h.stripe.portal || ""; return /^https:\/\/billing\.stripe\.com\//.test(p) ? p : ""; }
+    function paidFlash() {
+      if (!/[?&]paid=1/.test(location.search)) return "";
+      try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
+      return '<p class="flash" role="status">Thank you, your payment went through. Your plan updates here within a minute. Stripe emails your receipt.</p>';
+    }
     function vPlans() {
-      var yr = gs.bill === "year";
+      var yr = gs.bill === "year", st = planState(), paid = st.status === "active" || st.status === "past_due";
+      var live = h.mode === "live", mgr = h.canManage;
       var cards = PLANS.map(function (p) {
-        var cur = p.id === "growth";
+        var cur = p.id === st.plan && (paid || st.status === "trialing");
+        var url = link(p.id, yr ? "year" : "month");
+        var label = paid ? (cur ? "Current plan" : "Switch to " + p.t) : (st.status === "trialing" && cur ? "Keep " + p.t : "Choose " + p.t);
+        var btn;
+        if (paid && cur) btn = '<button class="btn alt" type="button" disabled>Current plan</button>';
+        else if (paid) btn = '<button class="btn alt" type="button" data-g="manage" data-fk="g-plan-' + p.id + '">' + label + "</button>";
+        else btn = '<button class="btn' + (p.best ? "" : " alt") + '" type="button" data-g="choose" data-v="' + p.id + '" data-url="' + esc(url) + '" data-fk="g-plan-' + p.id + '">' + label + "</button>";
         return '<article class="card plan' + (p.best ? " best" : "") + '">' +
           '<div class="row between"><h2>' + p.t + "</h2>" + (cur ? '<span class="pill good">Your plan</span>' : p.best ? '<span class="pill quiet">Most chosen</span>' : "") + "</div>" +
           '<p class="small muted">' + esc(p.who) + "</p>" +
           '<p class="price"><b class="num">' + money.format(yr ? Math.round(p.y / 12) : p.m) + '</b><span>/ month' + (yr ? ", billed " + money.format(p.y) + " a year" : ", billed monthly") + "</span></p>" +
           '<ul class="ticks">' + p.f.map(function (x) { return "<li>" + icon("check-circle") + "<span>" + esc(x) + "</span></li>"; }).join("") + "</ul>" +
-          (cur ? '<button class="btn alt" type="button" disabled>Current plan</button>' :
-                 '<button class="btn alt" type="button" data-g="choose" data-v="' + p.id + '" data-fk="g-plan-' + p.id + '">Switch to ' + p.t + "</button>") +
-          "</article>";
+          (mgr ? btn : "") + "</article>";
       }).join("");
+      var nowT, nowSub;
+      if (!st.status) { nowT = "No plan yet"; nowSub = "Choose a plan below to keep using the portal."; }
+      else {
+        var name = (PLANS.find(function (p) { return p.id === st.plan; }) || {t: st.plan}).t;
+        nowT = "<b>" + esc(name) + "</b>, " + esc(STATUS[st.status] || st.status) + (st.status === "trialing" && st.trialLeft != null ? ": " + st.trialLeft + (st.trialLeft === 1 ? " day" : " days") + " left" : "");
+        nowSub = st.sample ? "Sample account. Nothing is charged." :
+          st.status === "trialing" ? "Choose a plan before the trial ends. You won’t be charged until you do." :
+          st.status === "past_due" || st.status === "unpaid" ? "Your last payment did not go through. Update your card in Manage billing." :
+          st.end ? (st.cancelling ? "Ends on " : "Renews on ") + h.longDate(st.end.slice(0, 10)) + (st.period ? ", billed " + (st.period === "year" ? "yearly" : "monthly") : "") + "." : "";
+      }
+      var manage = live && mgr && portalLink() && (paid || st.status === "canceled") ? '<button class="btn alt small" type="button" data-g="manage" data-fk="g-manage">Manage billing and invoices</button>' : "";
       return '<section class="stack" aria-labelledby="h-main">' +
         head("Membership", '<span class="soft">One price a year.</span> Less than a day of consulting.',
           "Every plan includes the full binder, locked evidence and the eligibility tools. Prices are in Canadian dollars, plus tax. Pay yearly and get two months free.") +
-        '<div class="card plan-now row between"><div><p class="eyebrow">Current plan</p><p class="plan-now-t"><b>Growth</b>, free trial: 14 days left</p><p class="small muted">' + (h.mode === "demo" ? "Sample account. Nothing is charged." : "Billing starts when the trial ends.") + '</p></div>' +
+        paidFlash() +
+        (live && !mgr ? '<p class="badge">Only a company admin can change the plan.</p>' : "") +
+        '<div class="card plan-now row between"><div><p class="eyebrow">Current plan</p><p class="plan-now-t">' + nowT + '</p><p class="small muted">' + nowSub + "</p>" + (manage ? '<div class="row" style="margin-top:10px">' + manage + "</div>" : "") + "</div>" +
           '<div class="seg" role="group" aria-label="Billing period"><button type="button" class="seg-b' + (yr ? "" : " on") + '" aria-pressed="' + !yr + '" data-g="bill" data-v="month" data-fk="g-bill-m">Monthly</button><button type="button" class="seg-b' + (yr ? " on" : "") + '" aria-pressed="' + yr + '" data-g="bill" data-v="year" data-fk="g-bill-y">Yearly, 2 months free</button></div></div>' +
         '<div class="plans">' + cards + "</div>" +
         '<div class="card stack-sm"><div class="row between"><h2>For accountants and SR&amp;ED advisors</h2><span class="stamp">$49 per client company / month</span></div>' +
-          "<p>Manage every client’s binder from one sign-in, with read-only access to records, the audit log and binder exports. Volume pricing from 20 clients.</p></div>" +
+          "<p>Manage every client’s binder from one sign-in, with read-only access to records, the audit log and binder exports. Volume pricing from 20 clients. Contact KV WebDesign to set it up.</p></div>" +
         '<div class="card stack-sm"><h2>Questions about billing</h2><ul class="plain">' +
-          "<li>You can change plans at any time. We prorate the difference.</li>" +
-          "<li>If you cancel, you can still sign in and download your binders for 12 months. CRA can ask for records for at least six years.</li>" +
-          "<li>Payments are handled by a payment provider. We never see or store card numbers.</li></ul></div>" +
+          "<li>Payments go through Stripe’s secure checkout. We never see or store card numbers.</li>" +
+          "<li>You can change plans or cancel at any time in Manage billing. Stripe prorates the difference and emails every receipt.</li>" +
+          "<li>If you cancel, you can still sign in and download your binders for 12 months. CRA can ask for records for at least six years.</li></ul></div>" +
         "</section>";
     }
 
@@ -449,7 +483,20 @@
       if (g === "ohm") { gs.est = Object.assign(gs.est || estDefaults(), {overheadMode: v}); save(); h.render(); return; }
       if (g === "est-reset") { gs.est = null; save(); h.render(); return; }
       if (g === "bill") { gs.bill = v; save(); h.render(); return; }
-      if (g === "choose") { h.toast("Online billing is not switched on yet. Contact KV WebDesign to change plans."); return; }
+      if (g === "choose") {
+        if (h.mode !== "live") { h.toast("This is the demo, so nothing is charged. Members go to Stripe’s secure checkout here."); return; }
+        var url = b.getAttribute("data-url");
+        if (!url) { h.toast("Online billing is not switched on yet. Contact KV WebDesign to change plans."); return; }
+        // client_reference_id tells the webhook which company paid. It is the company id, not personal data.
+        location.href = url + (url.indexOf("?") < 0 ? "?" : "&") + "client_reference_id=" + encodeURIComponent(h.orgId);
+        return;
+      }
+      if (g === "manage") {
+        var pl = portalLink();
+        if (h.mode !== "live" || !pl) { h.toast(h.mode !== "live" ? "This is the demo, so there is no billing to manage." : "Billing management is not switched on yet. Contact KV WebDesign."); return; }
+        window.open(pl, "_blank", "noopener");
+        return;
+      }
       if (g === "jump") {
         var t = document.getElementById(b.getAttribute("data-to"));
         if (t) { t.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start"}); try { t.focus({preventScroll: true}); } catch (e) {} }

@@ -50,3 +50,6 @@ update public.profiles set is_kv_admin = true where email = 'you@example.com';
 
 Evidence is locked once filed: the database sets its timestamp and refuses edits
 or deletes. Every change to company data is written to an append-only audit log.
+
+## Memberships
+To charge companies for the portal, follow `STRIPE.md` after finishing this file.

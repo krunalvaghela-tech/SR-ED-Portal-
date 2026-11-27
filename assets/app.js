@@ -594,7 +594,11 @@
     fundingTotal: function () { return fundingTotal(); },
     render: function () { render(); },
     toast: function (t, bad) { toast(t, bad); },
-    get mode() { return MODE; }
+    get mode() { return MODE; },
+    get orgId() { return orgId; },
+    get billing() { return billing; },
+    get canManage() { return canManage(); },
+    stripe: (window.SRED_CONFIG || {}).stripe || {}
   }) : null;
   if (GUIDE) {
     GUIDE.nav.forEach(function (n) { NAV.push(n); ROUTES.push(n[0]); });
@@ -983,7 +987,7 @@
      Without config.js values (or with ?demo), the sample demo runs.
      ============================================================ */
   var CFG = window.SRED_CONFIG || {};
-  var sb = null, me = null, myOrgs = [], orgId = null, entryIds = {};
+  var sb = null, me = null, myOrgs = [], orgId = null, entryIds = {}, billing = null;
   var gate = document.getElementById("gate");
   var shell = document.getElementById("appShell");
   var banner = document.querySelector(".banner");
@@ -1171,6 +1175,8 @@
     ]);
     var bad = res.find(function (r) { return r.error; });
     if (bad) throw bad.error;
+    // Billing is optional: the table only exists once supabase/billing.sql has run.
+    try { var bl = await sb.from("billing").select("*").eq("org_id", orgId).maybeSingle(); billing = bl.error ? null : bl.data; } catch (e) { billing = null; }
     var people = res[1].data, entries = res[4].data;
     var fresh = {
       threshold: (res[0].data && res[0].data.gap_threshold_days) || 45,
